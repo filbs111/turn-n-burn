@@ -75,8 +75,11 @@ var ctx2;   //2nd canvas for intermediate rendering of level image with transpar
 var lw;
 var lh;
 
+var testcanvas;	//to draw collision detection data to check it looks OK
+
 var preMadeCircleImage = [];
 
+var collisionData= [512*1024];
 
 var screenCtx; //for another canvas to demonstrate scrolling
 
@@ -175,6 +178,15 @@ window.onload = function() {
         ctx2 = canvas2.getContext("2d");
         ctx2.drawImage(levelImage,0,0);
 
+		
+		//populate collision data array from canvas.
+		var levelImageData = ctx2.getImageData(0,0,512,1024).data;	//not sure this is the most direct way to go getting data from image
+		console.log("imagedata length = " + levelImageData.length);
+		var numPix = 512*1024;
+		for (var ii=0,jj=3;ii<numPix;ii++,jj+=4){
+			collisionData[ii] = levelImageData[jj]===0 ? false:true;	//should be a binary array. should make more compact somehow.
+																		//populate collision array from alpha channel of level image.
+		}
 
     	//kick off draw loop
         window.requestAnimationFrame(updateDisplay);
@@ -189,6 +201,15 @@ window.onload = function() {
 
 		aspectFitCanvas();
 		canvas.style.display = 'block';
+		
+		
+		//size and show test canvas for level collision data test
+		testcanvas = document.getElementById("coldetcanvas");
+		testcanvas.width = lw;
+        testcanvas.height = lh;
+	//	testcanvas.style.display = 'block';
+		updateCollisionTestCanvas();
+		
 	}
 	levelImage.src = "img/egypt_level1-t.png"; //-t is black changed to transparent
 
@@ -312,7 +333,7 @@ function updateDisplay(timestamp) {
 						0,0, 512,512);
 						
 		//log these numbers to help investigate problems on osx safari
-		console.log( "_drawImage number %f" , 64*scroll/scroll_max );
+		//console.log( "_drawImage number %f" , 64*scroll/scroll_max );
 						
 		//scroll background with foreground (check looks ok)				
 		//screenCtx.drawImage(bgImg, 64 ,scroll/scroll_max * 128, 128 ,128,
@@ -329,7 +350,10 @@ function updateDisplay(timestamp) {
 	
 	//put a cursor image on screen - intend to use this as a "player object" to demonstrate scrolling level by moving object
 	
-	screenCtx.fillStyle = "rgba(255,255,255,1)";	//white
+	
+	var coldatapix= ~~cursor_x  + 512*~~cursor_y;	//might fail if outside of bounds
+	//console.log(".. " + coldatapix + ".." + collisionData[coldatapix]);
+	screenCtx.fillStyle = ( collisionData[coldatapix]==true ? "rgba(255,0,0,1)" : "rgba(255,255,255,1)");	//red or white
     screenCtx.fillRect(interp_cursor_x-5,interp_cursor_y-scroll-5,10, 10);
 	
 	//indicate on the whole level canvas at top of screen where scrolled to
@@ -415,10 +439,33 @@ function makeACircle(evt){
       
     document.getElementById("time_output").innerHTML= ""+(Date.now()-startTime);
 
+	
 	//update collision data. 
 	//TODO
 }
 
+function updateCollisionTestCanvas(){
+	//simply draw black/white to test canvas from collision data.
+	//to demonstrate updating OK.
+	//method is slow but who cares
+	var testctx = testcanvas.getContext('2d');
+
+	testctx.fillStyle="black";
+	testctx.fillRect(0,0,512,1024);
+	
+	testctx.fillStyle="white";
+	var pix = 0;
+	
+	for (var yy=0; yy<1024;yy++){
+		for (var xx=0; xx<512;xx++){
+			if (collisionData[pix]==true){
+				testctx.fillRect(xx,yy,1,1);
+			}
+			pix++;
+		}
+	}
+	
+}
 
 function updateMechanics(){
 	
