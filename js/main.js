@@ -64,8 +64,24 @@
 //possibly still useful for canvas -> canvas even if using globalcompositeoperation instead of imagedata
 
 
+//high res timer thing. from http://stackoverflow.com/questions/6233927/microsecond-timing-in-javascript
+if (window.performance.now) {
+    console.log("Using high performance timer");
+    getTimestamp = function() { return window.performance.now(); };
+} else {
+    if (window.performance.webkitNow) {
+        console.log("Using webkit high performance timer");
+        getTimestamp = function() { return window.performance.webkitNow(); };
+    } else {
+        console.log("Using low performance timer");
+        getTimestamp = function() { return new Date().getTime(); };
+    }
+}
 
 
+
+
+var testColCanvasActive=false;
 
 
 var ctx;
@@ -80,6 +96,7 @@ var testcanvas;	//to draw collision detection data to check it looks OK
 var preMadeCircleImage = [];
 
 var collisionData= [512*1024];
+var preMadeCircleColData= [];
 
 var screenCtx; //for another canvas to demonstrate scrolling
 
@@ -141,8 +158,7 @@ function aspectFitCanvas(evt) {
         screencanvas.style.width = ww;
         screencanvas.style.height = ww * screencanvas.height / screencanvas.width;
     }
-};
-
+}
 
 
 
@@ -154,7 +170,7 @@ window.onload = function() {
     canvas.addEventListener("mouseout", respondToMouseup); //treat as same as unclicking mouse.      
     canvas.addEventListener("mousemove", respondToMousemove);
     
-	canvas.style.backgroundColor='rgba(0, 0, 0, 255)'
+	canvas.style.backgroundColor='rgba(0, 0, 0, 255)';
 
 	//load level image
 	var levelImage = new Image();
@@ -162,7 +178,7 @@ window.onload = function() {
 		console.log('level image loaded');
 
 		lw = levelImage.width;
-		lh = levelImage.height
+		lh = levelImage.height;
 
 		//set canvas size to image size, and paste the image into it
 		canvas.width = lw;
@@ -191,25 +207,32 @@ window.onload = function() {
     	//kick off draw loop
         window.requestAnimationFrame(updateDisplay);
 
-        
+        setupCircleImageAndColData(50);
+		setupCircleImageAndColData(100);
+		setupCircleImageAndColData(200);
+		setupCircleImageAndColData(400);
+
+		
+		/*
         preMadeCircleImage[50] = premakeCircleImage(50);
         preMadeCircleImage[100] = premakeCircleImage(100);
         preMadeCircleImage[200] =premakeCircleImage(200);
         preMadeCircleImage[400] =premakeCircleImage(400);
-        
+        */
+		
         ctx.font = "30px Arial";
 
 		aspectFitCanvas();
 		canvas.style.display = 'block';
-		
-		
-		//size and show test canvas for level collision data test
-		testcanvas = document.getElementById("coldetcanvas");
-		testcanvas.width = lw;
-        testcanvas.height = lh;
-	//	testcanvas.style.display = 'block';
-		updateCollisionTestCanvas();
-		
+	
+		if (testColCanvasActive==true){
+			//size and show test canvas for level collision data test
+			testcanvas = document.getElementById("coldetcanvas");
+			testcanvas.width = lw;
+			testcanvas.height = lh;
+			testcanvas.style.display = 'block';
+			updateCollisionTestCanvas();
+		}
 	}
 	levelImage.src = "img/egypt_level1-t.png"; //-t is black changed to transparent
 
@@ -248,23 +271,28 @@ function premakeCircleImage(rad){
     var thisImageDataData = thisImageData.data;
     //draw a circle. slow but only done once per size
     var radsq = rad*rad;
-    var ii,jj,jsq,rsq,idx=0;
+	var returnColDataArray=[4*radsq];	//this is super slow to run but works.
+	//var returnColDataArray = Array.apply(null, Array(4*radsq));	//this is faster but seems unable to make the 400x400 array
+    var ii,jj,jsq,rsq,idx=0,cdata_idx=0;
     for (jj=0;jj<size;jj++){
         jsq=(jj-rad)*(jj-rad);  //this can be sped up
         for (ii=0;ii<size;ii++){
             rsq = (ii-rad)*(ii-rad) + jsq;  //this can be sped up!
             if (rsq<radsq){
-                thisImageDataData[idx]=255
-                thisImageDataData[idx+1]=0
-                thisImageDataData[idx+2]=0
-                thisImageDataData[idx+3]=255
+                thisImageDataData[idx]=255;
+                thisImageDataData[idx+1]=0;
+                thisImageDataData[idx+2]=0;
+                thisImageDataData[idx+3]=255;
+				returnColDataArray[cdata_idx]=false;
             } else {
                 //thisImageDataData[idx]=255
                 //thisImageDataData[idx+1]=255
                 //thisImageDataData[idx+2]=255
                 //thisImageDataData[idx+3]=255
+				returnColDataArray[cdata_idx]=true;
             }
             idx+=4;
+			cdata_idx++;
         }
     }
     
@@ -274,10 +302,18 @@ function premakeCircleImage(rad){
     var tmpCtx = tmpCanvas.getContext("2d");
     tmpCtx.putImageData(thisImageData,0,0);
     
-    return tmpCanvas;
+    //return tmpCanvas;
+	return {'canvas':	tmpCanvas,
+			'cDataArr': returnColDataArray};
 }
+//below func could be rolled into the above#
 
-
+function setupCircleImageAndColData(rad){
+	var returnedObj = premakeCircleImage(rad);
+	console.log(returnedObj);
+	preMadeCircleImage[rad] = returnedObj.canvas;
+	preMadeCircleColData[rad] = returnedObj.cDataArr;
+}
 
 function updateDisplay(timestamp) {
     window.requestAnimationFrame(updateDisplay);
@@ -291,7 +327,6 @@ function updateDisplay(timestamp) {
         updateMechanics();
         mechanicsLeadTime += mechanicsTimestep;
     }
-	
 	
 	
 	
@@ -440,8 +475,48 @@ function makeACircle(evt){
     document.getElementById("time_output").innerHTML= ""+(Date.now()-startTime);
 
 	
+	
+	
+	var startTime = getTimestamp();
+	
 	//update collision data. 
-	//TODO
+	//initially this will be quite inefficient!
+	//if move to using a bit per pixel, this may end up reasonably quick. 
+	//may wish to move to system where value specifies distance to nearest terrain etc. avoid premature optimisation
+	coldata = preMadeCircleColData[radius];
+	//super slow version ...
+	/*
+	for (var ii = startx; ii<endx;ii++){
+		var pp = ii-(x-radius);
+			for (var jj = starty; jj<endy;jj++){
+				var qq = jj-(y-radius);
+				var pix2 = pp + (radius*2)*qq;
+				var pix = ii + 512*jj;
+				collisionData[pix]&=coldata[pix2];
+				//collisionData[pix]^=coldata[pix2];	//to make it obvious what's affected by cutting
+			}
+	}
+	*/
+	
+	//marginally faster version
+	var ppstart = startx-(x-radius);
+	for (var jj = starty; jj<endy;jj++){
+		var pix = startx+512*jj;
+		var pix2 = ppstart+(radius*2)*(jj-(y-radius));
+		for (var ii = startx; ii<endx;ii++){
+				collisionData[pix++]&=coldata[pix2++];
+				//collisionData[pix++]^=coldata[pix2++];	//to make it obvious what's affected by cutting
+			}
+	}
+	
+	
+	console.log("time to cut circle: " + (getTimestamp() - startTime));
+	startTime = getTimestamp();
+	
+	if (testColCanvasActive == true){updateCollisionTestCanvas();}
+
+	console.log("time to update canvas: " + (getTimestamp() - startTime));
+	
 }
 
 function updateCollisionTestCanvas(){
@@ -468,7 +543,7 @@ function updateCollisionTestCanvas(){
 }
 
 function updateMechanics(){
-	
+	/*
     //take chunks out of terrain at random
     if (mouseClicked == true){
         for (var circle=0;circle<4;circle++){
@@ -482,6 +557,8 @@ function updateMechanics(){
             //fakeEvent.offset
         }
     }
+	*/
+	//above is a good thing to test when have some speed!!
 	
 	//movement.
 	cursor_vx += 0.2 * (rightKey - leftKey);
@@ -508,16 +585,24 @@ function updateMechanics(){
 function keyDown(e) {
 	e.preventDefault();
 	//perhaps more sensible to maintain a set of currently pressed keys
-  if (e.keyCode == 39) rightKey = true;
-  else if (e.keyCode == 37) leftKey = true;
-  if (e.keyCode == 38) upKey = true;
-  else if (e.keyCode == 40) downKey = true;
+  if (e.keyCode == 39){rightKey = true;}
+  if (e.keyCode == 37){leftKey = true;}
+  if (e.keyCode == 38){upKey = true;}
+  if (e.keyCode == 40){downKey = true;}
+  
+  if (e.keyCode == 32){
+	  //space key
+	  makeACircle({offsetX:~~cursor_x, offsetY:~~cursor_y});
+	  console.log("made a circle since space depressed");
+
+  }
 }
 function keyUp(e) {
 	e.preventDefault();
 
-  if (e.keyCode == 39) rightKey = false;
-  else if (e.keyCode == 37) leftKey = false;
-  if (e.keyCode == 38) upKey = false;
-  else if (e.keyCode == 40) downKey = false;
+  if (e.keyCode == 39){rightKey = false;}
+  if (e.keyCode == 37){leftKey = false;}
+  if (e.keyCode == 38){upKey = false;}
+  if (e.keyCode == 40){downKey = false;}
+  
 }
