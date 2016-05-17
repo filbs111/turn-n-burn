@@ -66,14 +66,14 @@
 
 //high res timer thing. from http://stackoverflow.com/questions/6233927/microsecond-timing-in-javascript
 if (window.performance.now) {
-    console.log("Using high performance timer");
+    myconsolelog("Using high performance timer");
     getTimestamp = function() { return window.performance.now(); };
 } else {
     if (window.performance.webkitNow) {
-        console.log("Using webkit high performance timer");
+        myconsolelog("Using webkit high performance timer");
         getTimestamp = function() { return window.performance.webkitNow(); };
     } else {
-        console.log("Using low performance timer");
+        myconsolelog("Using low performance timer");
         getTimestamp = function() { return new Date().getTime(); };
     }
 }
@@ -81,8 +81,8 @@ if (window.performance.now) {
 
 
 
-var testColCanvasActive=true;
-
+var testColCanvasActive=false;
+var myConsoleLoggingActive=false;
 
 var ctx;
 var canvas;
@@ -120,11 +120,18 @@ var collisionData8Buffer = new ArrayBuffer(512*1024);
 var collisionData8View = new Uint8Array(collisionData8Buffer);
 var preMadeCircleColData8View= [];
 
+//single bit per pixel array. 
+var collisionDataBufferSingleBits = new ArrayBuffer(512*1024/8);	// over 8 since 1 byte covers 8 pixels
+var collisionDataSingleBits16View = new Uint16Array(collisionDataBufferSingleBits);	//split into 16 bits rather than 32 for convenience 
+			//3* scaled up GF2 levels are odd multiple of 16. 32 might be twice as fast, but should be quick anyway
+//initialise it (unsure if required)
+for (var ii=0;ii<512*1024/16;ii++){
+	collisionDataSingleBits16View[ii]= 0; // 0xffff;	//all on
+}
+			
+var preMadeCircleColDataSingleBits16View= [];
 
-
-
-
-
+			
 var screenCtx; //for another canvas to demonstrate scrolling
 
 
@@ -140,8 +147,8 @@ var mouseClicked = false;
 
 
 //really should learn about ho to use objects to organise things! eg using something to make vectors
-var cursor_x=0;
-var cursor_y=0;
+var cursor_x=47;
+var cursor_y=48;
 var cursor_vx=0;
 var cursor_vy=0;
 
@@ -150,7 +157,8 @@ var leftKey = false;
 var rightKey = false;
 var upKey = false;
 var downKey = false;
-
+var spaceKey = false;
+var returnKey = false;
 
 
 //background image for parallax. some simple system where paste it only if loaded - if add more resources to game, better to ensure all loaded and only then 
@@ -228,19 +236,30 @@ window.onload = function() {
 		var numPix = 512*1024;
 		for (var ii=0,jj=3;ii<numPix;ii++,jj+=4){
 			collisionData[ii] = levelImageData[jj]===0 ? false:true; //should be a binary array. should make more compact somehow.
-		collisionData32View[ii]	= levelImageData[jj]===0 ? 0:1;		
-		collisionData16View[ii]	= levelImageData[jj]===0 ? 0:1;		
-		collisionData8View[ii]	= levelImageData[jj]===0 ? 0:1;		
+			collisionData32View[ii]	= levelImageData[jj]===0 ? 0:1;		
+			collisionData16View[ii]	= levelImageData[jj]===0 ? 0:1;		
+			collisionData8View[ii]	= levelImageData[jj]===0 ? 0:1;		
 																//populate collision array from alpha channel of level image.
+																
+			//efficient array. note that this code can probably be optimised ( with loop over 16 bits inside another loop)
+
+			//collisionDataSingleBits16View[ii >>> 4] &= (levelImageData[jj]===0 ? 0:1);	//not complete
+			
+			collisionDataSingleBits16View[ii >>> 4] |= ( (levelImageData[jj]===0 ? 0:1) <<(ii & 15));
+			
+			
+			//override for testing
+			//collisionData8View[ii] =1;
+			//collisionDataSingleBits16View[ii>>>4]=0xffff;
 		}
 
     	//kick off draw loop
         window.requestAnimationFrame(updateDisplay);
 
-        setupCircleImageAndColData(50);
-		setupCircleImageAndColData(100);
-		setupCircleImageAndColData(200);
-		setupCircleImageAndColData(400);
+        setupCircleImageAndColData(48);
+		setupCircleImageAndColData(96);
+		setupCircleImageAndColData(192);
+		setupCircleImageAndColData(384);
 
 		
 		/*
@@ -310,6 +329,15 @@ function premakeCircleImage(rad){
 	preMadeCircleColData8View[rad] = new Uint8Array(collisionArray8buffer);
 	var dataView8 = preMadeCircleColData8View[rad];
 	
+	var collisionArraySinglePixBuffer = new ArrayBuffer(radsq*8/16);
+	preMadeCircleColDataSingleBits16View[rad] = new Uint16Array(collisionArraySinglePixBuffer);
+	var dataViewSinglePix = preMadeCircleColDataSingleBits16View[rad];
+	
+	//initialise to 0
+	for (var ii=0;ii<radsq*4/16;ii++){
+		dataViewSinglePix[ii]=0;	
+	}	
+	
     var size= rad*2;
     var thisImageData = ctx.createImageData(size,size);
     var thisImageDataData = thisImageData.data;
@@ -331,6 +359,7 @@ function premakeCircleImage(rad){
 				dataView32[cdata_idx]=0;
 				dataView16[cdata_idx]=0;
 				dataView8[cdata_idx]=0;
+				
             } else {
                 //thisImageDataData[idx]=255
                 //thisImageDataData[idx+1]=255
@@ -340,6 +369,9 @@ function premakeCircleImage(rad){
 				dataView32[cdata_idx]=1;
 				dataView16[cdata_idx]=1;
 				dataView8[cdata_idx]=1;
+				
+				dataViewSinglePix[cdata_idx >>> 4] |= ( 1 <<(cdata_idx & 15));		//this isn't efficient, but not really important since done during loading
+				
             }
             idx+=4;
 			cdata_idx++;
@@ -363,6 +395,15 @@ function setupCircleImageAndColData(rad){
 	console.log(returnedObj);
 	preMadeCircleImage[rad] = returnedObj.canvas;
 	preMadeCircleColData[rad] = returnedObj.cDataArr;
+}
+
+function getCollisionPixelDataXY(x,y){
+	return getCollisionPixelData(y*512 + x); //optimise with bit shift?
+}
+function getCollisionPixelData(pix){
+	//collisionDataSingleBits16View[ii >> 4] &= ( (levelImageData[jj]===0 ? 0:1) <<(ii & 15));
+	//console.log("pix = " + pix + ", pix >>4 = " + (pix >>4) + ", pix&15 = " + (pix&15));
+	return ((collisionDataSingleBits16View[pix >>> 4] >> (pix&15)) &1 );
 }
 
 function updateDisplay(timestamp) {
@@ -450,6 +491,10 @@ function updateDisplay(timestamp) {
 	screenCtx.fillStyle = ( collisionData8View[coldatapix]==1 ? "rgba(255,0,0,1)" : "rgba(255,255,255,1)");	//red or white
     screenCtx.fillRect(interp_cursor_x+1,interp_cursor_y-scroll+1,10, 10);
 	
+	screenCtx.fillStyle = ( getCollisionPixelData(coldatapix)==1 ? "rgba(255,0,0,1)" : "rgba(255,255,255,1)");	//red or white
+    screenCtx.fillRect(interp_cursor_x+3,interp_cursor_y-scroll+3,10, 10);
+	
+	
 	/*
 	console.log("collisionData32View[coldatapix] = " + (collisionData32View[coldatapix]));
 	console.log("collisionData32View length = " + collisionData32View.length);
@@ -495,7 +540,7 @@ function makeACircle(evt){
     
 	var x = evt.offsetX;
 	var y = evt.offsetY;
-	console.log("mouse clicked - x = " + x + ", y = " + y);
+	myconsolelog("making a circle - x = " + x + ", y = " + y);
 
 	//should draw a hole on canvas.
 	
@@ -561,7 +606,10 @@ function makeACircle(evt){
 			}
 	}
 	*/
-	
+
+
+
+/*	
 	//marginally faster version
 	var ppstart = startx-(x-radius);
 	for (var jj = starty; jj<endy;jj++){
@@ -572,59 +620,137 @@ function makeACircle(evt){
 				//collisionData[pix++]^=coldata[pix2++];	//to make it obvious what's affected by cutting
 			}
 	}
-	console.log("time to cut circle: " + (getTimestamp() - startTime));
+	myconsolelog("time to cut circle: " + (getTimestamp() - startTime));
 	startTime = getTimestamp();
-	
-	
+*/	
+/*	
 	//version using typed array
 	var circArray = preMadeCircleColData32View[radius];
 	ppstart = startx-(x-radius);
+	var pix,pix2,ii;
 	for (var jj = starty; jj<endy;jj++){
-		var pix = startx+512*jj;
-		var pix2 = ppstart+(radius*2)*(jj-(y-radius));
-		for (var ii = startx; ii<endx;ii++){
+		pix = startx+512*jj;
+		pix2 = ppstart+(radius*2)*(jj-(y-radius));
+		for (ii = startx; ii<endx;ii++){
 				collisionData32View[pix++]&=circArray[pix2++];
 				//collisionData[pix++]^=coldata[pix2++];	//to make it obvious what's affected by cutting
 			}
 	}
-	console.log("time to cut circle 32: " + (getTimestamp() - startTime));
+	myconsolelog("time to cut circle 32: " + (getTimestamp() - startTime));
 	startTime = getTimestamp();
-
-	
+*/
+/*	
 	//version using typed array
 	var circArray16 = preMadeCircleColData16View[radius];
 	ppstart = startx-(x-radius);
+	var pix,pix2,ii;
 	for (var jj = starty; jj<endy;jj++){
-		var pix = startx+512*jj;
-		var pix2 = ppstart+(radius*2)*(jj-(y-radius));
-		for (var ii = startx; ii<endx;ii++){
+		pix = startx+512*jj;
+		pix2 = ppstart+(radius*2)*(jj-(y-radius));
+		for (ii = startx; ii<endx;ii++){
 				collisionData16View[pix++]&=circArray16[pix2++];
 				//collisionData[pix++]^=coldata[pix2++];	//to make it obvious what's affected by cutting
 			}
 	}
-	console.log("time to cut circle 16: " + (getTimestamp() - startTime));
+	myconsolelog("time to cut circle 16: " + (getTimestamp() - startTime));
 	startTime = getTimestamp();
-	
-	
+*/	
+/*	
 	//version using typed array
 	var circArray8 = preMadeCircleColData8View[radius];
 	ppstart = startx-(x-radius);
+	var pix,pix2,ii;
 	for (var jj = starty; jj<endy;jj++){
-		var pix = startx+512*jj;
-		var pix2 = ppstart+(radius*2)*(jj-(y-radius));
-		for (var ii = startx; ii<endx;ii++){
+		pix = startx+512*jj;
+		pix2 = ppstart+(radius*2)*(jj-(y-radius));
+		for (ii = startx; ii<endx;ii++){
 				collisionData8View[pix++]&=circArray8[pix2++];
 				//collisionData[pix++]^=coldata[pix2++];	//to make it obvious what's affected by cutting
 			}
 	}
-	console.log("time to cut circle 8: " + (getTimestamp() - startTime));
+	myconsolelog("time to cut circle 8: " + (getTimestamp() - startTime));
+	startTime = getTimestamp();
+*/
+	
+	// code for creating cut mask
+	// dataViewSinglePix = preMadeCircleColDataSingleBits16View[rad]
+	// dataViewSinglePix[cdata_idx >>> 4] |= ( 1 <<(cdata_idx & 15));
+	//code for creating level collsiion data 
+	// collisionDataSingleBits16View[ii >>> 4] |= ( (levelImageData[jj]===0 ? 0:1) <<(ii & 15));
+
+	var dataViewSinglePix = preMadeCircleColDataSingleBits16View[radius];
+	var levelxblockstart;
+	
+	levelxblockstart = startx >>> 4;
+	levelxblockend = ((endx-1) >>> 4)+1;	//here , end means last one will visit, +1 (eg used in c style for loop end condition)
+	
+	var blockx, blockidx, yincutmask, xoffs;
+	
+	xoffs = (x - radius) & 15;	//mod 16
+	
+	var cutblocka, cutblockb, cutblockx, cutblockxstart;
+	var cutblockmask;
+	
+	//console.log( "levelxblockstart = " + levelxblockstart + ", levelxblockend = " + levelxblockend);
+	
+	cutblockxstart = (startx+15 - (x- radius)) >>> 4; 
+	//console.log( "cutblockxstart = " + cutblockxstart + ", xoffs = " + xoffs);
+	
+	for (var jj = starty; jj<endy;jj++){	//loop over rows
+
+		//initial version of this - unoptimised - will be able to pull out stuff from inner loop once check works ok
+		//loop over level blocks. 
+		
+		yincutmask = jj - (y-radius); 
+	
+		//console.log("yincutmask = " + yincutmask);
+		
+		for (blockx = levelxblockstart; blockx<levelxblockend; blockx++ ){
+			blockidx = (512/16)*jj + blockx;
+			
+			//cutblockx = blockx - ( (x- radius) >>> 4 ) -1;
+			
+			cutblockx = cutblockxstart + blockx-levelxblockstart -1;	//this can be optimised to precalc cutblockxstart - levelxblockstart - 1
+			
+			cutblocka = ((radius*2)/16)*yincutmask + cutblockx;			//this can be optimised to precalc ((radius*2)/16)*yincutmask
+			cutblockb = cutblocka + 1;
+			
+			cutblockmask=0;
+			
+			//get roughly working ?
+			if (cutblockx>=0){
+				cutblockmask|= dataViewSinglePix[cutblocka] >>> (16-xoffs);			//this can be optimised by simply assigning to cutblockx
+																					//and by carrying over previous dataViewSinglePix[cutblockb] instead of looking up afresh
+																					//this also means can avoid this if.
+			} else {
+				cutblockmask|= 0xffff >>> (16-xoffs);	//affects left hand side.
+			}
+				
+			if (cutblockx +1 <(radius*2/16)){									//can optimise by precalc radius*2/16 . alternatively, can avoid ifs entirely...
+				cutblockmask|= dataViewSinglePix[cutblockb] << xoffs;
+			} else {
+				cutblockmask|= 0xffff << xoffs;
+			}
+			
+			//console.log("blocka = " + cutblocka + ", cutblockmask = " + cutblockmask);
+			
+			collisionDataSingleBits16View[blockidx] &= cutblockmask;
+			
+		}
+
+	
+	}
+
+	
+	
+	myconsolelog("time to cut circle 32 of 8: " + (getTimestamp() - startTime));
 	startTime = getTimestamp();
 	
 	
 	
 	if (testColCanvasActive == true){updateCollisionTestCanvas();}
 
-	console.log("time to update canvas: " + (getTimestamp() - startTime));
+	myconsolelog("time to update canvas: " + (getTimestamp() - startTime));
 	
 }
 
@@ -643,12 +769,41 @@ function updateCollisionTestCanvas(){
 	for (var yy=0; yy<1024;yy++){
 		for (var xx=0; xx<512;xx++){
 			//if (collisionData[pix]==true){
-			if (collisionData8View[pix]==1){
+			//if (collisionData8View[pix]==1){
+			if (getCollisionPixelData(pix)==1){
 				testctx.fillRect(xx,yy,1,1);
 			}
 			pix++;
 		}
 	}
+	
+	//show where disagreement between methods
+	testctx.fillStyle="red";
+	pix = 0;
+	for (var yy=0; yy<1024;yy++){
+		for (var xx=0; xx<512;xx++){
+			//if (collisionData[pix]==true){
+			if (collisionData8View[pix]==0){
+			if (getCollisionPixelData(pix)==1){
+				testctx.fillRect(xx,yy,1,1);
+			}}
+			pix++;
+		}
+	}
+	
+	testctx.fillStyle="yellow";
+	pix = 0;
+	for (var yy=0; yy<1024;yy++){
+		for (var xx=0; xx<512;xx++){
+			//if (collisionData[pix]==true){
+			if (collisionData8View[pix]==1){
+			if (getCollisionPixelData(pix)==0){
+				testctx.fillRect(xx,yy,1,1);
+			}}
+			pix++;
+		}
+	}
+	
 	
 }
 
@@ -688,6 +843,18 @@ function updateMechanics(){
 	if (cursor_x>x_max){cursor_x=x_max;cursor_vx=0;}
 	if (cursor_y>y_max){cursor_y=y_max;cursor_vy=0;}
 	
+	if(spaceKey){makeACircle({offsetX:~~cursor_x, offsetY:~~cursor_y});}
+	if(returnKey){makeRandomCircles();}
+}
+
+
+function makeRandomCircles(){
+	var circnum, circleX, circleY;
+	for (circnum=0;circnum<20;circnum++){
+        circleX = 512*Math.random() | 0;
+        circleY = 1024*Math.random() | 0;		
+		makeACircle({offsetX:circleX, offsetY:circleY});
+	}
 }
 
 
@@ -703,9 +870,11 @@ function keyDown(e) {
   if (e.keyCode == 32){
 	  //space key
 	  makeACircle({offsetX:~~cursor_x, offsetY:~~cursor_y});
-	  console.log("made a circle since space depressed");
-
+	  myconsolelog("made a circle since space depressed");
+	  spaceKey = true;
   }
+  if (e.keyCode == 13){returnKey=true;}
+  
 }
 function keyUp(e) {
 	e.preventDefault();
@@ -714,5 +883,12 @@ function keyUp(e) {
   if (e.keyCode == 37){leftKey = false;}
   if (e.keyCode == 38){upKey = false;}
   if (e.keyCode == 40){downKey = false;}
-  
+  if (e.keyCode == 32){spaceKey = false;}
+  if (e.keyCode == 13){returnKey=false;}
+}
+
+function myconsolelog(logstring){
+	if (myConsoleLoggingActive){
+		console.log(logstring);
+	}
 }
