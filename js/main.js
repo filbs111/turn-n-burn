@@ -78,15 +78,38 @@ var lh;
 var preMadeCircleImage = [];
 
 
+var screenCtx; //for another canvas to demonstrate scrolling
+
+
 //for framerate
 var lastDrawTime = 0;
 var framesRecently = 0;
+var mechanicsLeadTime = 0;
+var mechanicsTimestep = 20; //20ms so 50 fps mechanics 
 
 var mouseX =0;
 var mouseY =0;
 var mouseClicked = false;
 
 
+//really should learn about ho to use objects to organise things! eg using something to make vectors
+var cursor_x=0;
+var cursor_y=0;
+var cursor_vx=0;
+var cursor_vy=0;
+
+
+var leftKey = false;
+var rightKey = false;
+var upKey = false;
+var downKey = false;
+
+
+
+//background image for parallax. some simple system where paste it only if loaded - if add more resources to game, better to ensure all loaded and only then 
+//ran rendering code
+var bgImg;
+var bgImgLoaded = false;
 
 
 //taken from fullscreen test project
@@ -105,11 +128,17 @@ function aspectFitCanvas(evt) {
         canvas.style.width = ww;
         canvas.style.height = ww * canvas.height / canvas.width;
     }
-    
+	
+	//repeat for 2nd canvas (temp)
+    //aspect fit
+    if ( ww * screencanvas.height > wh * screencanvas.width ) {
+        screencanvas.style.height = wh;
+        screencanvas.style.width = wh * screencanvas.width / screencanvas.height;
+    } else {
+        screencanvas.style.width = ww;
+        screencanvas.style.height = ww * screencanvas.height / screencanvas.width;
+    }
 };
-
-
-
 
 
 
@@ -163,8 +192,31 @@ window.onload = function() {
 	}
 	levelImage.src = "img/egypt_level1-t.png"; //-t is black changed to transparent
 
+	
+	//background image
+	bgImg = new Image();
+	bgImg.onload = function(){
+		console.log('background image loaded');
+		bgImgLoaded = true;
+	}
+	bgImg.src = "img/desertdull.png";
+	
+	
+	
 	//test? have a 2nd canvas to draw collision data into?
 
+	
+	
+	//temp - make other canvas visible
+	var screencanvas = document.getElementById('screencanvas');
+	screencanvas.style.display = 'block';
+	screenCtx = screencanvas.getContext('2d');
+	
+	
+	//intialise controls
+	document.addEventListener('keydown', keyDown, false);
+	document.addEventListener('keyup', keyUp, false);
+	
 }
 
 
@@ -209,22 +261,21 @@ function premakeCircleImage(rad){
 function updateDisplay(timestamp) {
     window.requestAnimationFrame(updateDisplay);
 
-    
-    
-    //take chunks out of terrain at random
-    if (mouseClicked == true){
-        for (var circle=0;circle<4;circle++){
-            var randSize = 100;
-            var circleX = (mouseX - randSize + (2*randSize)*Math.random()) | 0;
-            var circleY = (mouseY - randSize + (2*randSize)*Math.random()) | 0;
-            makeACircle({offsetX:circleX, offsetY:circleY});
-
-            console.log("circleX : " + circleX + ", circleY : " + circleY );
-            //var fakeEvent;
-            //fakeEvent.offset
-        }
+	//note that taking input in this "catchup" way is not ideal! possibly can just have some general "catchup" function that is also called when input event received
+	var timeDiff = timestamp - lastDrawTime;
+    lastDrawTime = timestamp;
+    mechanicsLeadTime -= timeDiff; //this seeems not ideal - would prefer to get mechanics update out of updateDisplay, since guess this may be triggered close to time intend to actually draw it
+                                    //(so want to do as little as pos here
+    while ( mechanicsLeadTime<0 ){
+        updateMechanics();
+        mechanicsLeadTime += mechanicsTimestep;
     }
-    
+	
+	
+	
+	
+	
+	//for entire level image showing at top of the screen
     //copy from the offscreen level canvas to the on-screen canvas
    // ctx.drawImage(canvas2,timestamp % 10,0);
     //ctx.clearRect(0,0,canvas.width, canvas.height);
@@ -232,15 +283,68 @@ function updateDisplay(timestamp) {
     ctx.fillRect(0,0,canvas.width, canvas.height);
     ctx.drawImage(canvas2,0,0);
 
-    //for framerate
-    var timeDiff = timestamp - lastDrawTime;
-    lastDrawTime = timestamp;
+	
+	//same thing for smaller second canvas to demo scrolling
+	var sc_h = screencanvas.height;
+	var sc_w = screencanvas.width;
+	
+		
+	//var scroll = (timestamp/4) % (1024-sc_h);    //height of level - heigh of screen
+	
+	var scroll_max = canvas2.height - sc_h;
+
+    var interpFactor = mechanicsLeadTime / mechanicsTimestep; 	//interpolated position 
+	var interp_cursor_x = cursor_x - cursor_vx*interpFactor;
+	var interp_cursor_y = cursor_y - cursor_vy*interpFactor;
+	
+	var scroll = Math.min( Math.max( interp_cursor_y - (sc_h/2) , 0 ) , scroll_max ); // centre cursor, but don't scroll beyond end of level
+	
+	
+	if (bgImgLoaded == true){
+		//screenCtx.drawImage(bgImg, 0,0, 256,256,
+		//				0,0, 512,512);			// stretches 256*256 background image to fill 512*512 screen - does not scroll
+		
+		//blow up subsection of background, such that background scrolls slower than level
+		//to do this, since half of the level is shown at a time, more than half of the background should be shown at a time.
+		
+		//show 196*196 of 256*256 at a time, x centred, y from touching top to touching bottom.
+		screenCtx.drawImage(bgImg, 32 ,64*scroll/scroll_max, 192 ,192,
+						0,0, 512,512);
+						
+		//log these numbers to help investigate problems on osx safari
+		console.log( "_drawImage number %f" , 64*scroll/scroll_max );
+						
+		//scroll background with foreground (check looks ok)				
+		//screenCtx.drawImage(bgImg, 64 ,scroll/scroll_max * 128, 128 ,128,
+		//				0,0, 512,512);			
+						
+	} else {
+		screenCtx.fillStyle = "rgba(0,255,0,1)";	//probably don't need to set this every frame, but will replace with parallax bg anyway
+		screenCtx.fillRect(0,0,sc_w, sc_h);
+	}
+	
+	
+	screenCtx.drawImage(canvas2, 0,scroll, sc_w,sc_h,
+                                        0,0, sc_w, sc_h);	//copy from relevant part of destructible canvas, given scroll value to on-screen canvas 
+	
+	//put a cursor image on screen - intend to use this as a "player object" to demonstrate scrolling level by moving object
+	
+	screenCtx.fillStyle = "rgba(255,255,255,1)";	//white
+    screenCtx.fillRect(interp_cursor_x-5,interp_cursor_y-scroll-5,10, 10);
+	
+	//indicate on the whole level canvas at top of screen where scrolled to
+	//ctx.fillStyle = "rgba(255,0,255,1)";	//magenta
+    //ctx.fillRect(cursor_x-5,scroll-5,10, 10);
+	
+	
+	//for framerate
+    //var timeDiff = timestamp - lastDrawTime;
+    //lastDrawTime = timestamp;
     var multiplier = Math.pow(0.999, timeDiff);
     framesRecently*= multiplier;
     framesRecently++;
-    ctx.strokeText( framesRecently.toPrecision(2) , 50,50);
-
-    
+    screenCtx.strokeText( framesRecently.toFixed(1) , 50,50);
+	
 }
 
 
@@ -261,9 +365,6 @@ function respondToMouseclick(evt){
     
     makeACircle(evt);
     
-    //how to do recurring on loop? 
-    //for now, put on frame update.
-    
 }
 
 
@@ -281,20 +382,13 @@ function makeACircle(evt){
     
     //radio button controls
 	var radius = 100;
-    var cuttype =1;
     var radii = document.getElementsByName('cutradius');
     for(var i = 0; i < radii.length; i++){
         if(radii[i].checked){
             radius = parseInt(radii[i].value);
         }
     }
-    var cuttypes = document.getElementsByName('cuttype');
-    for(var i = 0; i < cuttypes.length; i++){
-        if(cuttypes[i].checked){
-            cuttype = cuttypes[i].value;
-        }
-    }
-    
+	
     var diam = radius+radius;
 	var radsq = radius*radius;
 	var startx = Math.max(0,x-radius);
@@ -323,4 +417,60 @@ function makeACircle(evt){
 
 	//update collision data. 
 	//TODO
+}
+
+
+function updateMechanics(){
+	
+    //take chunks out of terrain at random
+    if (mouseClicked == true){
+        for (var circle=0;circle<4;circle++){
+            var randSize = 100;
+            var circleX = (mouseX - randSize + (2*randSize)*Math.random()) | 0;
+            var circleY = (mouseY - randSize + (2*randSize)*Math.random()) | 0;
+            makeACircle({offsetX:circleX, offsetY:circleY});
+
+            console.log("circleX : " + circleX + ", circleY : " + circleY );
+            //var fakeEvent;
+            //fakeEvent.offset
+        }
+    }
+	
+	//movement.
+	cursor_vx += 0.2 * (rightKey - leftKey);
+	cursor_vy += 0.2 * (downKey - upKey);
+	cursor_vx*=0.95;
+	cursor_vy*=0.95;
+	cursor_x+=cursor_vx;
+	cursor_y+=cursor_vy;
+	
+	//don't go outside level
+	var x_min =5;
+	var y_min =5;
+	if (cursor_x<x_min){cursor_x=x_min;cursor_vx=0;}
+	if (cursor_y<y_min){cursor_y=y_min;cursor_vy=0;}
+	var x_max = canvas2.width-5;
+	var y_max = canvas2.height-5;
+	if (cursor_x>x_max){cursor_x=x_max;cursor_vx=0;}
+	if (cursor_y>y_max){cursor_y=y_max;cursor_vy=0;}
+	
+}
+
+
+//controls
+function keyDown(e) {
+	e.preventDefault();
+	//perhaps more sensible to maintain a set of currently pressed keys
+  if (e.keyCode == 39) rightKey = true;
+  else if (e.keyCode == 37) leftKey = true;
+  if (e.keyCode == 38) upKey = true;
+  else if (e.keyCode == 40) downKey = true;
+}
+function keyUp(e) {
+	e.preventDefault();
+
+  if (e.keyCode == 39) rightKey = false;
+  else if (e.keyCode == 37) leftKey = false;
+  if (e.keyCode == 38) upKey = false;
+  else if (e.keyCode == 40) downKey = false;
 }
