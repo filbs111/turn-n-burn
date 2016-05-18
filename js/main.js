@@ -24,7 +24,7 @@ var gunCountdown, gunCountdownStart = 10;
 //hard code these for now. 
 //TODO set these at level load time. (eg call some function loadLevel...)
 
-
+ 
 //small level
 /*
 var LEVEL_WIDTH = 512;
@@ -105,6 +105,12 @@ var cursor_vx=0;
 var cursor_vy=0;
 var interp_cursor_x, interp_cursor_x, interpFactor;
 
+var gunLength = 10,
+	gunAngle = 45,
+	gunAngleRadians,
+	cosGunAngle,
+	sinGunAngle;
+
 //background image for parallax. some simple system where paste it only if loaded - if add more resources to game, better to ensure all loaded and only then 
 //ran rendering code
 var bgImg;
@@ -117,6 +123,9 @@ var keyThing;	//used in conjnuction with js_utils/keys.js
 
 var bombs = {};	//this should probably be some kind of object so can have method to draw all etc
 var bombidx =0;	//every time make a new bomb increase this. realistically probebl no problem with fact number is limited, but bothersome...
+
+var currentWeapon = weapons[0];	//select default weapon
+
 
 //taken from fullscreen test project
 window.onresize = aspectFitCanvas;		//this works if not explicitly using HTML5. ?!!!!!!!
@@ -244,7 +253,20 @@ window.onload = function() {
 			new Bomb(cursor_x, cursor_y, vx, vy);
 		}
 	});
-	//todo generalise weapon properties and stick them in another file.
+	
+	//number keys to switch weapons (not numeric keys at the mo.) //buttons 0,1-9 have ondownkey numbers 48,49-57 
+	//because http://tobyho.com/2011/11/02/callbacks-in-loops/
+	function addNumberClickHandler(ii,kk){
+		keyThing.setKeydownCallback(kk, function(){
+			currentWeapon = weapons[ii];
+			console.log("pressed a key. weapon name = " + currentWeapon.name );
+		});
+	}
+	for (var ii=0;ii<3;ii++){
+		thatweapon = weapons[ii];
+		console.log("hopefully adding a callback for a weapon named " + thatweapon['name']);
+		addNumberClickHandler(ii,48+ii);
+	}
 }
 
 
@@ -403,6 +425,16 @@ function updateDisplay(timestamp) {
 	//ctx.fillStyle = "rgba(255,0,255,1)";	//magenta
     //ctx.fillRect(cursor_x-5,scroll-5,10, 10);
 	
+	
+	//draw a line indicating direction of fire.
+	//gunAngle = 30;	//clockwise from straight up.
+	screenCtx.beginPath();
+	screenCtx.moveTo(interp_cursor_x-scroll_x , interp_cursor_y-scroll_y);
+	screenCtx.lineTo(interp_cursor_x-scroll_x + gunLength*sinGunAngle , interp_cursor_y-scroll_y - gunLength*cosGunAngle);
+	//screenCtx.closePath();	//seems superfluous
+	screenCtx.stroke();
+	
+	
 	for (var b in bombs){
 		//console.log("processing a bomb in draw loop");
 		bombs[b].draw();	//this should go in the draw bit
@@ -526,7 +558,7 @@ function makeACircle(evt){
 	var blockx, blockidx, yincutmask, xoffs;
 	
 	xoffs = (x - radius) & 15;	//mod 16
-	
+		
 	var cutblocka, cutblockb, cutblockx, cutblockxstart;
 	var cutblockmask;
 	
@@ -558,15 +590,23 @@ function makeACircle(evt){
 			
 			//get roughly working ?
 			if (cutblockx>=0){
-				cutblockmask|= dataViewSinglePix[cutblocka] >>> (16-xoffs)*2;			//this can be optimised by simply assigning to cutblockx
+								
+				//cutblockmask|= dataViewSinglePix[cutblocka] >>> (16-xoffs)*2;			//this can be optimised by simply assigning to cutblockx
 																					//and by carrying over previous dataViewSinglePix[cutblockb] instead of looking up afresh
 																					//this also means can avoid this if.
 																						//*2 since switched from 16 to 32 bits
+				//er , wierdly, bitshifting to right by 32 does NOT get zero!!!
+				//if (xoffs !=0){
+				//	cutblockmask|= dataViewSinglePix[cutblocka] >>> (16-xoffs)*2;
+				//}
+				cutblockmask|= dataViewSinglePix[cutblocka] >>> (16-xoffs) >>> (16-xoffs); // but 16 twice does. go figure!
 			} else {
 				cutblockmask|= 0xffffffff >>> (16-xoffs)*2;	//affects left hand side.
 			}
 				
-			if (cutblockx +1 <(radius*2/16)){									//can optimise by precalc radius*2/16 . alternatively, can avoid ifs entirely...
+			if  (cutblockx +1 <(radius*2/16)) {		
+		
+								//can optimise by precalc radius*2/16 . alternatively, can avoid ifs entirely...
 				cutblockmask|= dataViewSinglePix[cutblockb] << xoffs*2;			//*2 since switched from 16 to 32 bits
 			} else {
 				cutblockmask|= 0xffffffff << xoffs*2;			//*2 since switched from 16 to 32 bits, and ffff -> ffffffff
@@ -575,7 +615,6 @@ function makeACircle(evt){
 			//console.log("blocka = " + cutblocka + ", cutblockmask = " + cutblockmask);
 			
 			collisionDataDoubleBits32View[blockidx] &= cutblockmask;
-			
 		}
 
 	
@@ -586,7 +625,7 @@ function makeACircle(evt){
 	startTime = getTimestamp();
 	
 	
-	if (testColCanvasActive == true){updateCollisionTestCanvas();}
+//	if (testColCanvasActive == true){updateCollisionTestCanvas();}
 
 	myconsolelog("time to update canvas: " + (getTimestamp() - startTime));
 	
@@ -728,20 +767,26 @@ function updateMechanics(){
 	if(keyThing.returnKey()){makeRandomCircles();}
 	
 	
+	//rotate spaceship/ gun angle. no acceleration for now
+	gunAngle += 3.0 * ( keyThing.keystate(190) - keyThing.keystate(188) );	// <, > keys  
+	gunAngleRadians = Math.PI * gunAngle / 180;
+	cosGunAngle = Math.cos(gunAngleRadians);
+	sinGunAngle = Math.sin(gunAngleRadians);
+	
+	for (var b in bombs){
+		//console.log("processing a bomb in game loop");
+		bombs[b].iterate();
+	}
+	
 	//dropping bombs
 	if (gunCountdown>0){
 		gunCountdown--;
 	} else {
 		if (keyThing.bombKey()){
 			gunCountdown = gunCountdownStart;
-			console.log("dropped a bomb!");
-			new Bomb(cursor_x, cursor_y, cursor_vx, cursor_vy);
+			//console.log("dropped a bomb!");
+			new Bomb(cursor_x, cursor_y, cursor_vx + currentWeapon.muz_vel*sinGunAngle , cursor_vy - currentWeapon.muz_vel*cosGunAngle);
 		}
-	}
-	
-	for (var b in bombs){
-		//console.log("processing a bomb in game loop");
-		bombs[b].iterate();
 	}
 	
 }
@@ -756,25 +801,7 @@ function makeRandomCircles(){
 	}
 }
 
-//this might sort of work
-//will also want some method to add co-ords together.
-//can use something like this to make multiple vector stores, but then should have some way to add/subtract them etc
-//therefore maybe better to only have 1 central vector store, then other things can list indices in this store. ???
-/*
-function vecStore2D(){
-	var coordX = [];
-	var coordY = [];
-	var setVec = function(ii,xx,yy){
-		coordX[ii]=xx;
-		coordY[ii]=yy;
-	}
-	var getVec = function(ii){
-		return {
-			x: coordX[ii],
-			y: coordY[ii]
-		}
-	}
-}*/
+
 
 //from tutorial: https://www.youtube.com/watch?v=YCI8uqePkrc
 function Bomb(x,y,vx,vy){
@@ -803,6 +830,7 @@ Bomb.prototype.iterate = function(){
 	} else if (getCollisionPixelDataXY(~~this.x,~~this.y)!=0){
 		//collision with arena....
 		//seems like a risk here that ~~ could get some number outside of arena despite checking the above....	
+		console.log("detonating bomb . x = " + ~~this.x + ", y = " + ~~this.y );
 		this.destroy();
 	}
 }
@@ -921,6 +949,10 @@ function afterLoadFunc(){
 			testcanvas.height = lh;
 			testcanvas.style.display = 'block';
 			updateCollisionTestCanvas();
+			
+			keyThing.setKeydownCallback(67,function(){			//67=c key
+							updateCollisionTestCanvas();
+			});
 	}
 	
 	//kick off draw loop
