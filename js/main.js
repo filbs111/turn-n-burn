@@ -17,8 +17,11 @@ if (window.performance.now) {
 }
 
 
+//CONFIG
 var testColCanvasActive=false;
 var myConsoleLoggingActive=false;
+var gunCountdown, gunCountdownStart = 10;
+
 
 var levelImage, levelImageLoaded;	//TODO move to some object
 var levelIndestImage, levelIndestImageLoaded;
@@ -187,10 +190,6 @@ window.onload = function() {
 	keyThing.setKeydownCallback(17,function(){			//17 = ctrl
 		//console.log("dropped a bomb!");
 		//new Bomb(cursor_x, cursor_y, cursor_vx, cursor_vy);
-	});
-	keyThing.setKeydownCallback(106,function(){			//106 = numeric pad "*" (shouldn't clash)
-		console.log("dropped a bomb!");
-		new Bomb(cursor_x, cursor_y, cursor_vx, cursor_vy);
 	});
 	keyThing.setKeydownCallback(97,function(){			//97 = numpad 1
 		console.log("fired multidirectional shot");
@@ -721,6 +720,16 @@ function updateMechanics(){
 	if(keyThing.returnKey()){makeRandomCircles();}
 	
 	
+	//dropping bombs
+	if (gunCountdown>0){
+		gunCountdown--;
+	} else {
+		if (keyThing.bombKey()){
+			gunCountdown = gunCountdownStart;
+			console.log("dropped a bomb!");
+			new Bomb(cursor_x, cursor_y, cursor_vx, cursor_vy);
+		}
+	}
 	
 	for (var b in bombs){
 		//console.log("processing a bomb in game loop");
