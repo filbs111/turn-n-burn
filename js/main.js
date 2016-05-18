@@ -31,9 +31,6 @@ var testcanvas;	//to draw collision detection data to check it looks OK
 
 var preMadeCircleImage = [];
 
-var collisionData= [512*1024];
-var preMadeCircleColData= [];
-
 
 //do collision data in a more efficient way
 //using typed array should ensure is dense array.
@@ -43,14 +40,6 @@ var preMadeCircleColData= [];
 
 //for now just use 1 value per pixel to see how stacks up against standard
 //array
-
-var collisionData32Buffer = new ArrayBuffer(512*1024*4);	//*4 because 4 bytes for a 32 bit number
-var collisionData32View = new Uint32Array(collisionData32Buffer);
-var preMadeCircleColData32View= [];
-
-var collisionData16Buffer = new ArrayBuffer(512*1024*2);	//*2 because 2 bytes for a 16 bit number
-var collisionData16View = new Uint16Array(collisionData16Buffer);
-var preMadeCircleColData16View= [];
 
 var collisionData8Buffer = new ArrayBuffer(512*1024);
 var collisionData8View = new Uint8Array(collisionData8Buffer);
@@ -69,13 +58,13 @@ var preMadeCircleColDataSingleBits16View= [];
 
 			
 var screenCtx; //for another canvas to demonstrate scrolling
-
+var scroll; //move to global since also used by particle drawing. (should amend this...)
 
 //for framerate
 var lastDrawTime = 0;
 var framesRecently = 0;
 var mechanicsLeadTime = 0;
-var mechanicsTimestep = 20; //20ms so 50 fps mechanics 
+var mechanicsTimestep = 10; //10ms so 100 fps mechanics 
 
 var mouseX =0;
 var mouseY =0;
@@ -98,31 +87,39 @@ var bgImgLoaded = false;
 var keyThing;	//used in conjnuction with js_utils/keys.js
 
 
+
+var bombs = {};	//this should probably be some kind of object so can have method to draw all etc
+var bombidx =0;	//every time make a new bomb increase this. realistically probebl no problem with fact number is limited, but bothersome...
+
 //taken from fullscreen test project
-window.onresize = aspectFitCanvas;
-    
+window.onresize = aspectFitCanvas;		//this works if not explicitly using HTML5. ?!!!!!!!
+//window.onresize = aspectFitCanvas;
+   
+   
 function aspectFitCanvas(evt) {
 
     var ww = window.innerWidth -2;
     var wh = window.innerHeight -2;
     
-    //aspect fit
-    if ( ww * canvas.height > wh * canvas.width ) {
-        canvas.style.height = wh;
-        canvas.style.width = wh * canvas.width / canvas.height;
+	//console.log("aspect fitting canvas... ww = " + ww + ", wh = " + wh);
+
+	//fails if put <!DOCTYPE html> in the html doc and assign numbers to style.height etc!! wants strings ending in "px" apparently 
+	if ( ww * canvas.height > wh * canvas.width ) {
+        canvas.style.height = "" + wh + "px";
+        canvas.style.width = "" + ( wh * canvas.width / canvas.height) + "px";
     } else {
-        canvas.style.width = ww;
-        canvas.style.height = ww * canvas.height / canvas.width;
+        canvas.style.width = "" + ww + "px";
+        canvas.style.height = "" + ( ww * canvas.height / canvas.width ) + "px";
     }
 	
 	//repeat for 2nd canvas (temp)
     //aspect fit
     if ( ww * screencanvas.height > wh * screencanvas.width ) {
-        screencanvas.style.height = wh;
-        screencanvas.style.width = wh * screencanvas.width / screencanvas.height;
+        screencanvas.style.height = "" + wh + "px";
+        screencanvas.style.width = "" + ( wh * screencanvas.width / screencanvas.height ) + "px";
     } else {
-        screencanvas.style.width = ww;
-        screencanvas.style.height = ww * screencanvas.height / screencanvas.width;
+        screencanvas.style.width = "" + ww + "px";
+        screencanvas.style.height = "" + ( ww * screencanvas.height / screencanvas.width ) + "px";
     }
 }
 
@@ -166,18 +163,11 @@ window.onload = function() {
 		console.log("imagedata length = " + levelImageData.length);
 		var numPix = 512*1024;
 		for (var ii=0,jj=3;ii<numPix;ii++,jj+=4){
-			collisionData[ii] = levelImageData[jj]===0 ? false:true; //should be a binary array. should make more compact somehow.
-			collisionData32View[ii]	= levelImageData[jj]===0 ? 0:1;		
-			collisionData16View[ii]	= levelImageData[jj]===0 ? 0:1;		
-			collisionData8View[ii]	= levelImageData[jj]===0 ? 0:1;		
-																//populate collision array from alpha channel of level image.
+
+			collisionData8View[ii]	= levelImageData[jj]===0 ? 0:1;	 //populate collision array from alpha channel of level image.
 																
 			//efficient array. note that this code can probably be optimised ( with loop over 16 bits inside another loop)
-
-			//collisionDataSingleBits16View[ii >>> 4] &= (levelImageData[jj]===0 ? 0:1);	//not complete
-			
 			collisionDataSingleBits16View[ii >>> 4] |= ( (levelImageData[jj]===0 ? 0:1) <<(ii & 15));
-			
 			
 			//override for testing
 			//collisionData8View[ii] =1;
@@ -195,14 +185,6 @@ window.onload = function() {
 		setupCircleImageAndColData(192);
 		setupCircleImageAndColData(384);
 
-		
-		/*
-        preMadeCircleImage[50] = premakeCircleImage(50);
-        preMadeCircleImage[100] = premakeCircleImage(100);
-        preMadeCircleImage[200] =premakeCircleImage(200);
-        preMadeCircleImage[400] =premakeCircleImage(400);
-        */
-		
         ctx.font = "30px Arial";
 
 		aspectFitCanvas();
@@ -229,10 +211,8 @@ window.onload = function() {
 	bgImg.src = "img/desertdull.png";
 	
 	
-	
 	//test? have a 2nd canvas to draw collision data into?
 
-	
 	
 	//temp - make other canvas visible
 	var screencanvas = document.getElementById('screencanvas');
@@ -245,21 +225,29 @@ window.onload = function() {
 		makeACircle({offsetX:~~cursor_x, offsetY:~~cursor_y});
 		myconsolelog("made a circle since space depressed");
 	});
-
+	keyThing.setKeydownCallback(17,function(){			//17 = ctrl
+		console.log("dropped a bomb!");
+		new Bomb(cursor_x, cursor_y, cursor_vx, cursor_vy);
+	});
+	keyThing.setKeydownCallback(97,function(){			//17 = numpad 1
+		console.log("fired multidirectional shot");
+		var numdirections = 16;
+		var anglestep = 2*Math.PI/numdirections;
+		var speed =2;
+		var angle = 0;
+		var vx,vy;
+		for (var ii=0;ii<numdirections;ii++){
+			vx = cursor_vx + speed*Math.sin(angle);
+			vy = cursor_vy + speed*Math.cos(angle);
+			new Bomb(cursor_x, cursor_y, vx, vy);
+			angle+=anglestep;
+		}
+	});
 }
-
 
 
 function premakeCircleImage(rad){
 	var radsq = rad*rad;
-	
-	var collisionArray32buffer = new ArrayBuffer(radsq*16);
-	preMadeCircleColData32View[rad] = new Uint32Array(collisionArray32buffer);
-	var dataView32 = preMadeCircleColData32View[rad];
-	
-	var collisionArray16buffer = new ArrayBuffer(radsq*8);
-	preMadeCircleColData16View[rad] = new Uint16Array(collisionArray16buffer);
-	var dataView16 = preMadeCircleColData16View[rad];
 	
 	var collisionArray8buffer = new ArrayBuffer(radsq*4);
 	preMadeCircleColData8View[rad] = new Uint8Array(collisionArray8buffer);
@@ -279,7 +267,6 @@ function premakeCircleImage(rad){
     var thisImageDataData = thisImageData.data;
     //draw a circle. slow but only done once per size
     
-	var returnColDataArray=[4*radsq];	//this is super slow to run but works.
 	//var returnColDataArray = Array.apply(null, Array(4*radsq));	//this is faster but seems unable to make the 400x400 array
     var ii,jj,jsq,rsq,idx=0,cdata_idx=0;
     for (jj=0;jj<size;jj++){
@@ -291,9 +278,7 @@ function premakeCircleImage(rad){
                 thisImageDataData[idx+1]=0;
                 thisImageDataData[idx+2]=0;
                 thisImageDataData[idx+3]=255;
-				returnColDataArray[cdata_idx]=false;
-				dataView32[cdata_idx]=0;
-				dataView16[cdata_idx]=0;
+
 				dataView8[cdata_idx]=0;
 				
             } else {
@@ -301,9 +286,7 @@ function premakeCircleImage(rad){
                 //thisImageDataData[idx+1]=255
                 //thisImageDataData[idx+2]=255
                 //thisImageDataData[idx+3]=255
-				returnColDataArray[cdata_idx]=true;
-				dataView32[cdata_idx]=1;
-				dataView16[cdata_idx]=1;
+
 				dataView8[cdata_idx]=1;
 				
 				dataViewSinglePix[cdata_idx >>> 4] |= ( 1 <<(cdata_idx & 15));		//this isn't efficient, but not really important since done during loading
@@ -321,16 +304,13 @@ function premakeCircleImage(rad){
     tmpCtx.putImageData(thisImageData,0,0);
     
     //return tmpCanvas;
-	return {'canvas':	tmpCanvas,
-			'cDataArr': returnColDataArray};
+	return {'canvas':tmpCanvas};
 }
 //below func could be rolled into the above#
-
 function setupCircleImageAndColData(rad){
 	var returnedObj = premakeCircleImage(rad);
 	console.log(returnedObj);
 	preMadeCircleImage[rad] = returnedObj.canvas;
-	preMadeCircleColData[rad] = returnedObj.cDataArr;
 }
 
 function getCollisionPixelDataXY(x,y){
@@ -379,7 +359,7 @@ function updateDisplay(timestamp) {
 	var interp_cursor_x = cursor_x - cursor_vx*interpFactor;
 	var interp_cursor_y = cursor_y - cursor_vy*interpFactor;
 	
-	var scroll = Math.min( Math.max( interp_cursor_y - (sc_h/2) , 0 ) , scroll_max ); // centre cursor, but don't scroll beyond end of level
+	scroll = Math.min( Math.max( interp_cursor_y - (sc_h/2) , 0 ) , scroll_max ); // centre cursor, but don't scroll beyond end of level
 	
 	
 	if (bgImgLoaded == true){
@@ -414,31 +394,22 @@ function updateDisplay(timestamp) {
 	
 	var coldatapix= ~~cursor_x  + 512*~~cursor_y;	//might fail if outside of bounds
 	//console.log(".. " + coldatapix + ".." + collisionData[coldatapix]);
-	screenCtx.fillStyle = ( collisionData[coldatapix]==true ? "rgba(255,0,0,1)" : "rgba(255,255,255,1)");	//red or white
-    screenCtx.fillRect(interp_cursor_x-5,interp_cursor_y-scroll-5,10, 10);
-	
-	screenCtx.fillStyle = ( collisionData32View[coldatapix]==1 ? "rgba(255,0,0,1)" : "rgba(255,255,255,1)");	//red or white
-    screenCtx.fillRect(interp_cursor_x-3,interp_cursor_y-scroll-3,10, 10);
 
-	screenCtx.fillStyle = ( collisionData16View[coldatapix]==1 ? "rgba(255,0,0,1)" : "rgba(255,255,255,1)");	//red or white
-    screenCtx.fillRect(interp_cursor_x-1,interp_cursor_y-scroll-1,10, 10);
 	
 	screenCtx.fillStyle = ( collisionData8View[coldatapix]==1 ? "rgba(255,0,0,1)" : "rgba(255,255,255,1)");	//red or white
-    screenCtx.fillRect(interp_cursor_x+1,interp_cursor_y-scroll+1,10, 10);
+    screenCtx.fillRect(interp_cursor_x-5,interp_cursor_y-scroll-5,10, 10);
 	
 	screenCtx.fillStyle = ( getCollisionPixelData(coldatapix)==1 ? "rgba(255,0,0,1)" : "rgba(255,255,255,1)");	//red or white
-    screenCtx.fillRect(interp_cursor_x+3,interp_cursor_y-scroll+3,10, 10);
-	
-	
-	/*
-	console.log("collisionData32View[coldatapix] = " + (collisionData32View[coldatapix]));
-	console.log("collisionData32View length = " + collisionData32View.length);
-	*/
+    screenCtx.fillRect(interp_cursor_x-3,interp_cursor_y-scroll-3,10, 10);
 	
 	//indicate on the whole level canvas at top of screen where scrolled to
 	//ctx.fillStyle = "rgba(255,0,255,1)";	//magenta
     //ctx.fillRect(cursor_x-5,scroll-5,10, 10);
 	
+	for (var b in bombs){
+		//console.log("processing a bomb in draw loop");
+		bombs[b].draw();	//this should go in the draw bit
+	}
 	
 	//for framerate
     //var timeDiff = timestamp - lastDrawTime;
@@ -523,69 +494,9 @@ function makeACircle(evt){
 	//initially this will be quite inefficient!
 	//if move to using a bit per pixel, this may end up reasonably quick. 
 	//may wish to move to system where value specifies distance to nearest terrain etc. avoid premature optimisation
-	coldata = preMadeCircleColData[radius];
-	//super slow version ...
-	/*
-	for (var ii = startx; ii<endx;ii++){
-		var pp = ii-(x-radius);
-			for (var jj = starty; jj<endy;jj++){
-				var qq = jj-(y-radius);
-				var pix2 = pp + (radius*2)*qq;
-				var pix = ii + 512*jj;
-				collisionData[pix]&=coldata[pix2];
-				//collisionData[pix]^=coldata[pix2];	//to make it obvious what's affected by cutting
-			}
-	}
-	*/
-
-
-
-/*	
-	//marginally faster version
-	var ppstart = startx-(x-radius);
-	for (var jj = starty; jj<endy;jj++){
-		var pix = startx+512*jj;
-		var pix2 = ppstart+(radius*2)*(jj-(y-radius));
-		for (var ii = startx; ii<endx;ii++){
-				collisionData[pix++]&=coldata[pix2++];
-				//collisionData[pix++]^=coldata[pix2++];	//to make it obvious what's affected by cutting
-			}
-	}
-	myconsolelog("time to cut circle: " + (getTimestamp() - startTime));
-	startTime = getTimestamp();
-*/	
-/*	
-	//version using typed array
-	var circArray = preMadeCircleColData32View[radius];
-	ppstart = startx-(x-radius);
-	var pix,pix2,ii;
-	for (var jj = starty; jj<endy;jj++){
-		pix = startx+512*jj;
-		pix2 = ppstart+(radius*2)*(jj-(y-radius));
-		for (ii = startx; ii<endx;ii++){
-				collisionData32View[pix++]&=circArray[pix2++];
-				//collisionData[pix++]^=coldata[pix2++];	//to make it obvious what's affected by cutting
-			}
-	}
-	myconsolelog("time to cut circle 32: " + (getTimestamp() - startTime));
-	startTime = getTimestamp();
-*/
-/*	
-	//version using typed array
-	var circArray16 = preMadeCircleColData16View[radius];
-	ppstart = startx-(x-radius);
-	var pix,pix2,ii;
-	for (var jj = starty; jj<endy;jj++){
-		pix = startx+512*jj;
-		pix2 = ppstart+(radius*2)*(jj-(y-radius));
-		for (ii = startx; ii<endx;ii++){
-				collisionData16View[pix++]&=circArray16[pix2++];
-				//collisionData[pix++]^=coldata[pix2++];	//to make it obvious what's affected by cutting
-			}
-	}
-	myconsolelog("time to cut circle 16: " + (getTimestamp() - startTime));
-	startTime = getTimestamp();
-*/	
+//	coldata = preMadeCircleColData[radius];
+	
+	//for earlier, slower versions of circle cutting, see main-7 and earlier.
 /*	
 	//version using typed array
 	var circArray8 = preMadeCircleColData8View[radius];
@@ -773,6 +684,14 @@ function updateMechanics(){
 	
 	if(keyThing.spaceKey()){makeACircle({offsetX:~~cursor_x, offsetY:~~cursor_y});}
 	if(keyThing.returnKey()){makeRandomCircles();}
+	
+	
+	
+	for (var b in bombs){
+		//console.log("processing a bomb in game loop");
+		bombs[b].iterate();
+	}
+	
 }
 
 
@@ -782,5 +701,69 @@ function makeRandomCircles(){
         circleX = 512*Math.random() | 0;
         circleY = 1024*Math.random() | 0;		
 		makeACircle({offsetX:circleX, offsetY:circleY});
+	}
+}
+
+//this might sort of work
+//will also want some method to add co-ords together.
+//can use something like this to make multiple vector stores, but then should have some way to add/subtract them etc
+//therefore maybe better to only have 1 central vector store, then other things can list indices in this store. ???
+/*
+function vecStore2D(){
+	var coordX = [];
+	var coordY = [];
+	var setVec = function(ii,xx,yy){
+		coordX[ii]=xx;
+		coordY[ii]=yy;
+	}
+	var getVec = function(ii){
+		return {
+			x: coordX[ii],
+			y: coordY[ii]
+		}
+	}
+}*/
+
+//from tutorial: https://www.youtube.com/watch?v=YCI8uqePkrc
+function Bomb(x,y,vx,vy){
+	this.x = x;
+	this.y = y;
+	this.vx = vx;
+	this.vy = vy;
+	this.alive = true;
+	this.id = bombidx;
+	bombs[bombidx++]=this;
+}
+Bomb.prototype.iterate = function(){
+	this.x+=this.vx;
+	this.y+=this.vy;
+	this.vy+=0.025;
+	
+	//world limits
+	var willDestroy = false;
+	if (this.x<0){this.x=0; willDestroy=true;}
+	if (this.y<0){this.y=0; willDestroy=true;}
+	if (this.x>=512){this.x=512; willDestroy=true;}
+	if (this.y>=1024){this.y=1024; willDestroy=true;}
+
+	if (willDestroy==true){
+		this.destroy();
+	} else if (getCollisionPixelDataXY(~~this.x,~~this.y)==1){
+		//collision with arena....
+		//seems like a risk here that ~~ could get some number outside of arena despite checking the above....	
+		this.destroy();
+	}
+}
+Bomb.prototype.destroy = function(){
+	this.alive = false;
+	makeACircle({offsetX:~~this.x, offsetY:~~this.y});
+	delete bombs[this.id];
+}
+Bomb.prototype.draw = function(){
+	screenCtx.fillStyle="white";	
+	if (this.alive==true){
+		//should actually remove the bomb when it is destroyed! when do that, no point in the if here.
+		//console.log( "drawing a bomb at x = " + this.x + ", y = " + this.y);
+		screenCtx.fillRect(this.x-2,this.y-scroll-2,4,4);	//note this has no interpolation currently 
 	}
 }
