@@ -20,6 +20,9 @@ if (window.performance.now) {
 var testColCanvasActive=false;
 var myConsoleLoggingActive=false;
 
+var levelImage, levelImageLoaded;	//TODO move to some object
+var levelIndestImage, levelIndestImageLoaded;
+
 var ctx;
 var canvas;
 var canvas2;
@@ -139,117 +142,28 @@ window.onload = function() {
 	canvas.style.backgroundColor='rgba(0, 0, 0, 255)';
 
 	//load level image
-	var levelImage = new Image();
+	levelImage = new Image();
 	levelImage.onload = function(){
 		console.log('level image loaded');
-
-		lw = levelImage.width;
-		lh = levelImage.height;
-
-		//set canvas size to image size, and paste the image into it
-		canvas.width = lw;
-		canvas.height = lh;
-		ctx = canvas.getContext('2d');
-
-    	//ctx.drawImage(levelImage,0,0);
-
-        //make an intermediate canvas - or imagedata ??
-        canvas2 = document.createElement("canvas"); //does this get cleaned up after use???
-        canvas2.width = lw;
-        canvas2.height = lh;
-        ctx2 = canvas2.getContext("2d");
-        ctx2.drawImage(levelImage,0,0);
-
-		
-		//populate collision data array from canvas.
-		var levelImageData = ctx2.getImageData(0,0,512,1024).data;	//not sure this is the most direct way to go getting data from image
-		console.log("imagedata length = " + levelImageData.length);
-		var numPix = 512*1024;
-		for (var ii=0,jj=3;ii<numPix;ii++,jj+=4){
-
-			collisionData8View[ii]	= levelImageData[jj]===0 ? 0:1;	 //populate collision array from alpha channel of level image.
-																
-			//efficient array. note that this code can probably be optimised ( with loop over 16 bits inside another loop)
-			//collisionDataSingleBits16View[ii >>> 4] |= ( (levelImageData[jj]===0 ? 0:1) <<(ii & 15));
-			
-			//now use 32 bit array.
-			//switches on the destr bit if appropriate (bits alternate destr, indestr)
-			collisionDataDoubleBits32View[ii >>> 4] |= ( (levelImageData[jj]===0 ? 0:1) << ((ii & 15) * 2) );
-			
-			//override for testing
-			//collisionData8View[ii] =1;
-			//collisionDataSingleBits16View[ii>>>4]=0xffff;
-		}
-
-    	//kick off draw loop
-        window.requestAnimationFrame(updateDisplay);
-
-		setupCircleImageAndColData(8);
-		setupCircleImageAndColData(16);
-		setupCircleImageAndColData(24);
-        setupCircleImageAndColData(48);
-		setupCircleImageAndColData(96);
-		setupCircleImageAndColData(192);
-		setupCircleImageAndColData(384);
-
-        ctx.font = "30px Arial";
-
-		aspectFitCanvas();
-		canvas.style.display = 'block';
-	
-		if (testColCanvasActive==true){
-			//size and show test canvas for level collision data test
-			testcanvas = document.getElementById("coldetcanvas");
-			testcanvas.width = lw;
-			testcanvas.height = lh;
-			testcanvas.style.display = 'block';
-			updateCollisionTestCanvas();
-		}
-		
-		
-		
-		//TODO move to a system where load all required images, then do onload thing
-		//indestructuble part of level.
-		levelIndestImage = new Image();
-		levelIndestImage.onload = function(){
-			console.log("indestructible part of level loaded");
-			
-			//basically do the same as for destructible part of level as temporary solution.
-			//plenty of unnecessarily duplicated code. - we (should) know that the indest, edstructible level images are the same size.
-			lw = levelIndestImage.width;
-			lh = levelIndestImage.height;
-			canvas2i = document.createElement("canvas"); //does this get cleaned up after use???
-			canvas2i.width = lw;
-			canvas2i.height = lh;
-			ctx2i = canvas2i.getContext("2d");
-			ctx2i.drawImage(levelIndestImage,0,0);
-			
-			//populate collision data array from canvas. - ANOTHER COPYPASTA
-			var levelImageDatai = ctx2i.getImageData(0,0,512,1024).data;	//not sure this is the most direct way to go getting data from image
-			console.log("imagedata length (indest) = " + levelImageDatai.length);
-			var numPix = 512*1024;
-			for (var ii=0,jj=3;ii<numPix;ii++,jj+=4){
-				collisionDataDoubleBits32View[ii >>> 4] |= ( (levelImageDatai[jj]===0 ? 0:1) << ((ii & 15)*2  +1) );
-			}
-		}
-		levelIndestImage.src = "img/egypt_level1i-t.png";
-		
-		
-		
-		
-		
-		
-		
-		
+		levelImageLoaded = true;
+		afterLoadFunc();
 	}
 	levelImage.src = "img/egypt_level1-t.png"; //-t is black changed to transparent
 
+	levelIndestImage = new Image();
+	levelIndestImage.onload = function(){
+		console.log("indestructible part of level loaded");
+		levelIndestImageLoaded = true;
+		afterLoadFunc();
+	}
+	levelIndestImage.src = "img/egypt_level1i-t.png";
 	
 	//background image
 	bgImg = new Image();
 	bgImg.onload = function(){
 		console.log('background image loaded');
 		bgImgLoaded = true;
+		afterLoadFunc();
 	}
 	bgImg.src = "img/desertdull.png";
 	
@@ -271,6 +185,10 @@ window.onload = function() {
 		myconsolelog("made a circle since space depressed");
 	});
 	keyThing.setKeydownCallback(17,function(){			//17 = ctrl
+		//console.log("dropped a bomb!");
+		//new Bomb(cursor_x, cursor_y, cursor_vx, cursor_vy);
+	});
+	keyThing.setKeydownCallback(106,function(){			//106 = numeric pad "*" (shouldn't clash)
 		console.log("dropped a bomb!");
 		new Bomb(cursor_x, cursor_y, cursor_vx, cursor_vy);
 	});
@@ -321,8 +239,15 @@ function premakeCircleImage(rad){
 	}	
 	
     var size= rad*2;
-    var thisImageData = ctx.createImageData(size,size);
+    
+	
+	var tmpcanvas = document.createElement("canvas"); //does this get cleaned up after use???
+    tmpctx = tmpcanvas.getContext("2d");
+	
+	var thisImageData = tmpctx.createImageData(size,size);
     var thisImageDataData = thisImageData.data;
+	
+	
     //draw a circle. slow but only done once per size
     
 	//var returnColDataArray = Array.apply(null, Array(4*radsq));	//this is faster but seems unable to make the 400x400 array
@@ -887,4 +812,102 @@ function gaussRand(){
 		total+=Math.random();
 	}
 	return total/sqrtNumTimes;
+}
+
+
+
+function afterLoadFunc(){
+	if (bgImgLoaded & levelImageLoaded & levelIndestImageLoaded){
+		console.log("all images loaded");
+	} else {
+		console.log("not all images loaded. returning");
+		return;
+	}
+	
+	
+	setupCircleImageAndColData(8);
+	setupCircleImageAndColData(16);
+	setupCircleImageAndColData(24);
+    setupCircleImageAndColData(48);
+	setupCircleImageAndColData(96);
+	setupCircleImageAndColData(192);
+	setupCircleImageAndColData(384);
+	
+	
+	lw = levelImage.width;
+	lh = levelImage.height;
+
+	//set canvas size to image size, and paste the image into it
+	canvas.width = lw;
+	canvas.height = lh;
+	ctx = canvas.getContext('2d');
+
+    //ctx.drawImage(levelImage,0,0);
+
+    //make an intermediate canvas - or imagedata ??
+    canvas2 = document.createElement("canvas"); //does this get cleaned up after use???
+    canvas2.width = lw;
+    canvas2.height = lh;
+    ctx2 = canvas2.getContext("2d");
+    ctx2.drawImage(levelImage,0,0);
+
+		
+	//populate collision data array from canvas.
+	var levelImageData = ctx2.getImageData(0,0,512,1024).data;	//not sure this is the most direct way to go getting data from image
+	console.log("imagedata length = " + levelImageData.length);
+	var numPix = 512*1024;
+	for (var ii=0,jj=3;ii<numPix;ii++,jj+=4){
+
+			collisionData8View[ii]	= levelImageData[jj]===0 ? 0:1;	 //populate collision array from alpha channel of level image.
+																
+			//efficient array. note that this code can probably be optimised ( with loop over 16 bits inside another loop)
+			//collisionDataSingleBits16View[ii >>> 4] |= ( (levelImageData[jj]===0 ? 0:1) <<(ii & 15));
+			
+			//now use 32 bit array.
+			//switches on the destr bit if appropriate (bits alternate destr, indestr)
+			collisionDataDoubleBits32View[ii >>> 4] |= ( (levelImageData[jj]===0 ? 0:1) << ((ii & 15) * 2) );
+			
+			//override for testing
+			//collisionData8View[ii] =1;
+			//collisionDataSingleBits16View[ii>>>4]=0xffff;
+	}
+
+    ctx.font = "30px Arial";
+
+	aspectFitCanvas();
+	canvas.style.display = 'block';
+	
+
+	//indestructuble part of level.
+	//basically do the same as for destructible part of level as temporary solution.
+	//plenty of unnecessarily duplicated code. - we (should) know that the indest, edstructible level images are the same size.
+	lw = levelIndestImage.width;
+	lh = levelIndestImage.height;
+	canvas2i = document.createElement("canvas"); //does this get cleaned up after use???
+	canvas2i.width = lw;
+	canvas2i.height = lh;
+	ctx2i = canvas2i.getContext("2d");
+	ctx2i.drawImage(levelIndestImage,0,0);
+			
+	//populate collision data array from canvas. - ANOTHER COPYPASTA
+	var levelImageDatai = ctx2i.getImageData(0,0,512,1024).data;	//not sure this is the most direct way to go getting data from image
+	console.log("imagedata length (indest) = " + levelImageDatai.length);
+	var numPix = 512*1024;
+	for (var ii=0,jj=3;ii<numPix;ii++,jj+=4){
+		collisionDataDoubleBits32View[ii >>> 4] |= ( (levelImageDatai[jj]===0 ? 0:1) << ((ii & 15)*2  +1) );
+	}
+		
+		
+	if (testColCanvasActive==true){
+			//size and show test canvas for level collision data test
+			testcanvas = document.getElementById("coldetcanvas");
+			testcanvas.width = lw;
+			testcanvas.height = lh;
+			testcanvas.style.display = 'block';
+			updateCollisionTestCanvas();
+	}
+	
+	//kick off draw loop
+    window.requestAnimationFrame(updateDisplay);
+	
 }
