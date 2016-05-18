@@ -1,68 +1,6 @@
 //load in a level image
 //generate collision data for the level image
-//simple way to do this - array of numbers (64 bits each is overkill, but just check it works!)
-
 //when blow a hole in landscape - draw to canvas AND edit collision data
-//this is error prone - 
-//alternative is to edit image and get collision data by reading it, but trouble there since
-//possibly some dependence on browser, graphics card etc
-
-//also possibly may wish to separately load collision data, since can have separate destructuble, not, without
-//using pallette to describe this, or mulitple images (desr, indest)
-
-//actually, if don't want multiple images for destr, indest, may be doing own drawing to canvas
-//(rather than cutting pre-made circles. 
-
-//alternative ? re-paste indest tiles to affected areas?
-
-//initial test - just get simple case of all destructible working.
-
-
-
-//optimise: 
-//speed of update on destruction
-//use of memory
-
-//what debug tools? how can i stress?
-
-//how to test on lower end systems ?
-// netbook
-// at work
-
-
-
-//add scrolling
-//add fullscreen
-//add a smoothness tester - something that rotates/moves across screen
-
-//what is effect on framerate of level size?
-//can level be loaded with transparency?
-
-
-//do manual updating of a collision array
-
-
-
-//if have indestructible level too - what is effect on framerate ?
-  //option 1 - always paste indest level onto main screen canvas on top of indest
-  //option 2 - repaste from indest to destr canvas to cover dirty squares - this seems like should be generally better for framerate while nothing happening
-        //can also keep texture size smaller if using tiled levels - can repaste tiles.
-
-
-//if performance acceptable for now, write up untested options. eg...
-
-//are other globalcomposite options suitable/faster? eg xor
-
-//can get more speed by using pre-declared int32 array?
-//what about commands to copy imagedata?
-
-//if can't copy only part of imagedata to canvas
-// and update canvas with entire imagedata is slow
-//then can have blocks or strips of level as imagedata, offscreen canvases.
-//only update dirtied blocks
-
-//possibly still useful for canvas -> canvas even if using globalcompositeoperation instead of imagedata
-
 
 //high res timer thing. from http://stackoverflow.com/questions/6233927/microsecond-timing-in-javascript
 if (window.performance.now) {
@@ -77,8 +15,6 @@ if (window.performance.now) {
         getTimestamp = function() { return new Date().getTime(); };
     }
 }
-
-
 
 
 var testColCanvasActive=false;
@@ -153,18 +89,13 @@ var cursor_vx=0;
 var cursor_vy=0;
 
 
-var leftKey = false;
-var rightKey = false;
-var upKey = false;
-var downKey = false;
-var spaceKey = false;
-var returnKey = false;
-
-
 //background image for parallax. some simple system where paste it only if loaded - if add more resources to game, better to ensure all loaded and only then 
 //ran rendering code
 var bgImg;
 var bgImgLoaded = false;
+
+
+var keyThing;	//used in conjnuction with js_utils/keys.js
 
 
 //taken from fullscreen test project
@@ -256,6 +187,9 @@ window.onload = function() {
     	//kick off draw loop
         window.requestAnimationFrame(updateDisplay);
 
+		setupCircleImageAndColData(8);
+		setupCircleImageAndColData(16);
+		setupCircleImageAndColData(24);
         setupCircleImageAndColData(48);
 		setupCircleImageAndColData(96);
 		setupCircleImageAndColData(192);
@@ -306,10 +240,12 @@ window.onload = function() {
 	screenCtx = screencanvas.getContext('2d');
 	
 	
-	//intialise controls
-	document.addEventListener('keydown', keyDown, false);
-	document.addEventListener('keyup', keyUp, false);
-	
+	keyThing = myKeysStatesThing();	//thing to track key states
+	keyThing.setKeydownCallback(32,function(){			//32=space key
+		makeACircle({offsetX:~~cursor_x, offsetY:~~cursor_y});
+		myconsolelog("made a circle since space depressed");
+	});
+
 }
 
 
@@ -419,8 +355,7 @@ function updateDisplay(timestamp) {
         mechanicsLeadTime += mechanicsTimestep;
     }
 	
-	
-	
+
 	
 	//for entire level image showing at top of the screen
     //copy from the offscreen level canvas to the on-screen canvas
@@ -530,9 +465,7 @@ function respondToMouseclick(evt){
     mouseClicked = true;
     mouseX = evt.offsetX;
     mouseY = evt.offsetY;
-    
     makeACircle(evt);
-    
 }
 
 
@@ -583,8 +516,6 @@ function makeACircle(evt){
       
     document.getElementById("time_output").innerHTML= ""+(Date.now()-startTime);
 
-	
-	
 	
 	var startTime = getTimestamp();
 	
@@ -742,10 +673,8 @@ function makeACircle(evt){
 	}
 
 	
-	
-	myconsolelog("time to cut circle 32 of 8: " + (getTimestamp() - startTime));
+	myconsolelog("time to cut circle single bits: " + (getTimestamp() - startTime));
 	startTime = getTimestamp();
-	
 	
 	
 	if (testColCanvasActive == true){updateCollisionTestCanvas();}
@@ -823,11 +752,10 @@ function updateMechanics(){
         }
     }
 	*/
-	//above is a good thing to test when have some speed!!
 	
 	//movement.
-	cursor_vx += 0.2 * (rightKey - leftKey);
-	cursor_vy += 0.2 * (downKey - upKey);
+	cursor_vx += 0.2 * (keyThing.rightKey() - keyThing.leftKey());
+	cursor_vy += 0.2 * (keyThing.downKey() - keyThing.upKey());
 	cursor_vx*=0.95;
 	cursor_vy*=0.95;
 	cursor_x+=cursor_vx;
@@ -843,8 +771,8 @@ function updateMechanics(){
 	if (cursor_x>x_max){cursor_x=x_max;cursor_vx=0;}
 	if (cursor_y>y_max){cursor_y=y_max;cursor_vy=0;}
 	
-	if(spaceKey){makeACircle({offsetX:~~cursor_x, offsetY:~~cursor_y});}
-	if(returnKey){makeRandomCircles();}
+	if(keyThing.spaceKey()){makeACircle({offsetX:~~cursor_x, offsetY:~~cursor_y});}
+	if(keyThing.returnKey()){makeRandomCircles();}
 }
 
 
@@ -854,41 +782,5 @@ function makeRandomCircles(){
         circleX = 512*Math.random() | 0;
         circleY = 1024*Math.random() | 0;		
 		makeACircle({offsetX:circleX, offsetY:circleY});
-	}
-}
-
-
-//controls
-function keyDown(e) {
-	e.preventDefault();
-	//perhaps more sensible to maintain a set of currently pressed keys
-  if (e.keyCode == 39){rightKey = true;}
-  if (e.keyCode == 37){leftKey = true;}
-  if (e.keyCode == 38){upKey = true;}
-  if (e.keyCode == 40){downKey = true;}
-  
-  if (e.keyCode == 32){
-	  //space key
-	  makeACircle({offsetX:~~cursor_x, offsetY:~~cursor_y});
-	  myconsolelog("made a circle since space depressed");
-	  spaceKey = true;
-  }
-  if (e.keyCode == 13){returnKey=true;}
-  
-}
-function keyUp(e) {
-	e.preventDefault();
-
-  if (e.keyCode == 39){rightKey = false;}
-  if (e.keyCode == 37){leftKey = false;}
-  if (e.keyCode == 38){upKey = false;}
-  if (e.keyCode == 40){downKey = false;}
-  if (e.keyCode == 32){spaceKey = false;}
-  if (e.keyCode == 13){returnKey=false;}
-}
-
-function myconsolelog(logstring){
-	if (myConsoleLoggingActive){
-		console.log(logstring);
 	}
 }
