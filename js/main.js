@@ -23,7 +23,10 @@ var myConsoleLoggingActive=false;
 var ctx;
 var canvas;
 var canvas2;
-var ctx2;   //2nd canvas for intermediate rendering of level image with transparency
+var canvas2i; 
+	//indestructible canvas for use in same way as destructible canvas (copy to screen) - temp solution. better to either use image, or paste indest over destr canvas when wanted.
+
+var ctx2, ctx2i;   //2nd canvas for intermediate rendering of level image with transparency ( and ...i for indestructible copy)
 var lw;
 var lh;
 
@@ -46,15 +49,15 @@ var collisionData8View = new Uint8Array(collisionData8Buffer);
 var preMadeCircleColData8View= [];
 
 //single bit per pixel array. 
-var collisionDataBufferSingleBits = new ArrayBuffer(512*1024/8);	// over 8 since 1 byte covers 8 pixels
-var collisionDataSingleBits16View = new Uint16Array(collisionDataBufferSingleBits);	//split into 16 bits rather than 32 for convenience 
-			//3* scaled up GF2 levels are odd multiple of 16. 32 might be twice as fast, but should be quick anyway
+var collisionDataBufferDoubleBits = new ArrayBuffer(512*1024*2/8);
+var collisionDataDoubleBits32View = new Uint32Array(collisionDataBufferDoubleBits); 
+			//3* scaled up GF2 levels are odd multiple of 16. each 32 bit value covers 16 pixels (2 bits per pixel)
 //initialise it (unsure if required)
 for (var ii=0;ii<512*1024/16;ii++){
-	collisionDataSingleBits16View[ii]= 0; // 0xffff;	//all on
+	collisionDataDoubleBits32View[ii]= 0;
 }
 			
-var preMadeCircleColDataSingleBits16View= [];
+var preMadeCircleColDataDoubleBits32View= [];	//2 bits per level pixel - 1 for indestructible level, another for destructible level.
 
 			
 var screenCtx; //for another canvas to demonstrate scrolling
@@ -72,7 +75,7 @@ var mouseClicked = false;
 
 
 //really should learn about ho to use objects to organise things! eg using something to make vectors
-var cursor_x=140;
+var cursor_x=50;
 var cursor_y=48;
 var cursor_vx=0;
 var cursor_vy=0;
@@ -167,7 +170,11 @@ window.onload = function() {
 			collisionData8View[ii]	= levelImageData[jj]===0 ? 0:1;	 //populate collision array from alpha channel of level image.
 																
 			//efficient array. note that this code can probably be optimised ( with loop over 16 bits inside another loop)
-			collisionDataSingleBits16View[ii >>> 4] |= ( (levelImageData[jj]===0 ? 0:1) <<(ii & 15));
+			//collisionDataSingleBits16View[ii >>> 4] |= ( (levelImageData[jj]===0 ? 0:1) <<(ii & 15));
+			
+			//now use 32 bit array.
+			//switches on the destr bit if appropriate (bits alternate destr, indestr)
+			collisionDataDoubleBits32View[ii >>> 4] |= ( (levelImageData[jj]===0 ? 0:1) << ((ii & 15) * 2) );
 			
 			//override for testing
 			//collisionData8View[ii] =1;
@@ -198,6 +205,42 @@ window.onload = function() {
 			testcanvas.style.display = 'block';
 			updateCollisionTestCanvas();
 		}
+		
+		
+		
+		//TODO move to a system where load all required images, then do onload thing
+		//indestructuble part of level.
+		levelIndestImage = new Image();
+		levelIndestImage.onload = function(){
+			console.log("indestructible part of level loaded");
+			
+			//basically do the same as for destructible part of level as temporary solution.
+			//plenty of unnecessarily duplicated code. - we (should) know that the indest, edstructible level images are the same size.
+			lw = levelIndestImage.width;
+			lh = levelIndestImage.height;
+			canvas2i = document.createElement("canvas"); //does this get cleaned up after use???
+			canvas2i.width = lw;
+			canvas2i.height = lh;
+			ctx2i = canvas2i.getContext("2d");
+			ctx2i.drawImage(levelIndestImage,0,0);
+			
+			//populate collision data array from canvas. - ANOTHER COPYPASTA
+			var levelImageDatai = ctx2i.getImageData(0,0,512,1024).data;	//not sure this is the most direct way to go getting data from image
+			console.log("imagedata length (indest) = " + levelImageDatai.length);
+			var numPix = 512*1024;
+			for (var ii=0,jj=3;ii<numPix;ii++,jj+=4){
+				collisionDataDoubleBits32View[ii >>> 4] |= ( (levelImageDatai[jj]===0 ? 0:1) << ((ii & 15)*2  +1) );
+			}
+		}
+		levelIndestImage.src = "img/egypt_level1i-t.png";
+		
+		
+		
+		
+		
+		
+		
+		
 	}
 	levelImage.src = "img/egypt_level1-t.png"; //-t is black changed to transparent
 
@@ -209,6 +252,8 @@ window.onload = function() {
 		bgImgLoaded = true;
 	}
 	bgImg.src = "img/desertdull.png";
+	
+	
 	
 	
 	//test? have a 2nd canvas to draw collision data into?
@@ -266,13 +311,13 @@ function premakeCircleImage(rad){
 	preMadeCircleColData8View[rad] = new Uint8Array(collisionArray8buffer);
 	var dataView8 = preMadeCircleColData8View[rad];
 	
-	var collisionArraySinglePixBuffer = new ArrayBuffer(radsq*8/16);
-	preMadeCircleColDataSingleBits16View[rad] = new Uint16Array(collisionArraySinglePixBuffer);
-	var dataViewSinglePix = preMadeCircleColDataSingleBits16View[rad];
+	var collisionArraySinglePixBuffer = new ArrayBuffer(radsq);	//radsq*4 pixels, *2 since 2 bits per pixel, divide by 8 (bits per byte)
+	preMadeCircleColDataDoubleBits32View[rad] = new Uint32Array(collisionArraySinglePixBuffer);
+	var dataViewSinglePix = preMadeCircleColDataDoubleBits32View[rad];
 	
 	//initialise to 0
 	for (var ii=0;ii<radsq*4/16;ii++){
-		dataViewSinglePix[ii]=0;	
+		dataViewSinglePix[ii]=0xaaaaaaaa;	//indestr bits default on (won't cut), destr bits default off (will cut)	
 	}	
 	
     var size= rad*2;
@@ -302,7 +347,8 @@ function premakeCircleImage(rad){
 
 				dataView8[cdata_idx]=1;
 				
-				dataViewSinglePix[cdata_idx >>> 4] |= ( 1 <<(cdata_idx & 15));		//this isn't efficient, but not really important since done during loading
+				//dataViewSinglePix[cdata_idx >>> 4] |= ( 1 <<(cdata_idx & 15));		//this isn't efficient, but not really important since done during loading
+				dataViewSinglePix[cdata_idx >>> 4] |= ( 1 << ((cdata_idx & 15)*2) );		//this isn't efficient, but not really important since done during loading
 				
             }
             idx+=4;
@@ -332,7 +378,10 @@ function getCollisionPixelDataXY(x,y){
 function getCollisionPixelData(pix){
 	//collisionDataSingleBits16View[ii >> 4] &= ( (levelImageData[jj]===0 ? 0:1) <<(ii & 15));
 	//console.log("pix = " + pix + ", pix >>4 = " + (pix >>4) + ", pix&15 = " + (pix&15));
-	return ((collisionDataSingleBits16View[pix >>> 4] >> (pix&15)) &1 );
+	//return ((collisionDataSingleBits16View[pix >>> 4] >> (pix&15)) &1 );
+	
+	return ((collisionDataDoubleBits32View[pix >>> 4] >>> ((pix&15)*2 )) &3 );	//&3 since checking destr, indestr bits.
+	
 }
 
 function updateDisplay(timestamp) {
@@ -401,6 +450,10 @@ function updateDisplay(timestamp) {
 	
 	screenCtx.drawImage(canvas2, 0,scroll, sc_w,sc_h,
                                         0,0, sc_w, sc_h);	//copy from relevant part of destructible canvas, given scroll value to on-screen canvas 
+	if (canvas2i){
+		screenCtx.drawImage(canvas2i, 0,scroll, sc_w,sc_h,
+                                        0,0, sc_w, sc_h);	//same for indestructible part (this is a temporary, inefficient solution!)
+	}
 	
 	//put a cursor image on screen - intend to use this as a "player object" to demonstrate scrolling level by moving object
 	
@@ -408,7 +461,6 @@ function updateDisplay(timestamp) {
 	var coldatapix= ~~cursor_x  + 512*~~cursor_y;	//might fail if outside of bounds
 	//console.log(".. " + coldatapix + ".." + collisionData[coldatapix]);
 
-	
 	screenCtx.fillStyle = ( collisionData8View[coldatapix]==1 ? "rgba(255,0,0,1)" : "rgba(255,255,255,1)");	//red or white
     screenCtx.fillRect(interp_cursor_x-5,interp_cursor_y-scroll-5,10, 10);
 	
@@ -533,7 +585,7 @@ function makeACircle(evt){
 	//code for creating level collsiion data 
 	// collisionDataSingleBits16View[ii >>> 4] |= ( (levelImageData[jj]===0 ? 0:1) <<(ii & 15));
 
-	var dataViewSinglePix = preMadeCircleColDataSingleBits16View[radius];
+	var dataViewSinglePix = preMadeCircleColDataDoubleBits32View[radius];
 	var levelxblockstart;
 	
 	levelxblockstart = startx >>> 4;
@@ -574,22 +626,23 @@ function makeACircle(evt){
 			
 			//get roughly working ?
 			if (cutblockx>=0){
-				cutblockmask|= dataViewSinglePix[cutblocka] >>> (16-xoffs);			//this can be optimised by simply assigning to cutblockx
+				cutblockmask|= dataViewSinglePix[cutblocka] >>> (16-xoffs)*2;			//this can be optimised by simply assigning to cutblockx
 																					//and by carrying over previous dataViewSinglePix[cutblockb] instead of looking up afresh
 																					//this also means can avoid this if.
+																						//*2 since switched from 16 to 32 bits
 			} else {
-				cutblockmask|= 0xffff >>> (16-xoffs);	//affects left hand side.
+				cutblockmask|= 0xffffffff >>> (16-xoffs)*2;	//affects left hand side.
 			}
 				
 			if (cutblockx +1 <(radius*2/16)){									//can optimise by precalc radius*2/16 . alternatively, can avoid ifs entirely...
-				cutblockmask|= dataViewSinglePix[cutblockb] << xoffs;
+				cutblockmask|= dataViewSinglePix[cutblockb] << xoffs*2;			//*2 since switched from 16 to 32 bits
 			} else {
-				cutblockmask|= 0xffff << xoffs;
+				cutblockmask|= 0xffffffff << xoffs*2;			//*2 since switched from 16 to 32 bits, and ffff -> ffffffff
 			}
 			
 			//console.log("blocka = " + cutblocka + ", cutblockmask = " + cutblockmask);
 			
-			collisionDataSingleBits16View[blockidx] &= cutblockmask;
+			collisionDataDoubleBits32View[blockidx] &= cutblockmask;
 			
 		}
 
@@ -623,13 +676,57 @@ function updateCollisionTestCanvas(){
 		for (var xx=0; xx<512;xx++){
 			//if (collisionData[pix]==true){
 			//if (collisionData8View[pix]==1){
-			if (getCollisionPixelData(pix)==1){
+			if (getCollisionPixelData(pix)!= 0){	//something is on
+				testctx.fillStyle="white";
 				testctx.fillRect(xx,yy,1,1);
 			}
 			pix++;
 		}
 	}
 	
+	//show where destr terrain is
+	testctx.fillStyle="blue";
+	pix = 0;
+	for (var yy=0; yy<1024;yy++){
+		for (var xx=0; xx<512;xx++){
+			//if (collisionData[pix]==true){
+			//if (collisionData8View[pix]==1){
+			if (getCollisionPixelData(pix) == 1){
+				testctx.fillStyle="blue";
+				testctx.fillRect(xx,yy,1,1);
+			}
+			pix++;
+		}
+	}
+	//show where indestr terrain is
+	testctx.fillStyle="yellow";
+	pix = 0;
+	for (var yy=0; yy<1024;yy++){
+		for (var xx=0; xx<512;xx++){
+			//if (collisionData[pix]==true){
+			//if (collisionData8View[pix]==1){
+			if (getCollisionPixelData(pix) == 2){
+				testctx.fillStyle="yellow";
+				testctx.fillRect(xx,yy,1,1);
+			}
+			pix++;
+		}
+	}
+	
+	testctx.fillStyle="green";
+	pix = 0;
+	for (var yy=0; yy<1024;yy++){
+		for (var xx=0; xx<512;xx++){
+			//if (collisionData[pix]==true){
+			//if (collisionData8View[pix]==1){
+			if (getCollisionPixelData(pix) == 3){
+				testctx.fillRect(xx,yy,1,1);
+			}
+			pix++;
+		}
+	}
+	
+	/*
 	//show where disagreement between methods
 	testctx.fillStyle="red";
 	pix = 0;
@@ -656,7 +753,7 @@ function updateCollisionTestCanvas(){
 			pix++;
 		}
 	}
-	
+	*/
 	
 }
 
@@ -761,7 +858,7 @@ Bomb.prototype.iterate = function(){
 
 	if (willDestroy==true){
 		this.destroy();
-	} else if (getCollisionPixelDataXY(~~this.x,~~this.y)==1){
+	} else if (getCollisionPixelDataXY(~~this.x,~~this.y)!=0){
 		//collision with arena....
 		//seems like a risk here that ~~ could get some number outside of arena despite checking the above....	
 		this.destroy();
