@@ -72,7 +72,7 @@ var mouseClicked = false;
 
 
 //really should learn about ho to use objects to organise things! eg using something to make vectors
-var cursor_x=47;
+var cursor_x=140;
 var cursor_y=48;
 var cursor_vx=0;
 var cursor_vy=0;
@@ -229,7 +229,7 @@ window.onload = function() {
 		console.log("dropped a bomb!");
 		new Bomb(cursor_x, cursor_y, cursor_vx, cursor_vy);
 	});
-	keyThing.setKeydownCallback(97,function(){			//17 = numpad 1
+	keyThing.setKeydownCallback(97,function(){			//97 = numpad 1
 		console.log("fired multidirectional shot");
 		var numdirections = 16;
 		var anglestep = 2*Math.PI/numdirections;
@@ -243,6 +243,19 @@ window.onload = function() {
 			angle+=anglestep;
 		}
 	});
+	keyThing.setKeydownCallback(98,function(){			//98 = numpad 2
+		console.log("fired spray shot");
+		var numshots = 16;
+		var speed =4;
+		var vx,vy;
+		//todo precalculate random numbers and cycle them
+		for (var ii=0;ii<numshots;ii++){
+			vx = cursor_vx + speed*gaussRand();
+			vy = cursor_vy + speed*gaussRand();
+			new Bomb(cursor_x, cursor_y, vx, vy);
+		}
+	});
+	//todo generalise weapon properties and stick them in another file.
 }
 
 
@@ -766,4 +779,15 @@ Bomb.prototype.draw = function(){
 		//console.log( "drawing a bomb at x = " + this.x + ", y = " + this.y);
 		screenCtx.fillRect(this.x-2,this.y-scroll-2,4,4);	//note this has no interpolation currently 
 	}
+}
+
+function gaussRand(){
+	//note currently generally becomes bigger as increase numTimes. (maybe should divide by sqrt(numtimes?))
+	var sqrtNumTimes = 2;
+	var numTimes = sqrtNumTimes*sqrtNumTimes;
+	var total = -numTimes/2;
+	for (var ii=0;ii<numTimes;ii++){
+		total+=Math.random();
+	}
+	return total/sqrtNumTimes;
 }
