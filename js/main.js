@@ -16,11 +16,29 @@ if (window.performance.now) {
     }
 }
 
-
 //CONFIG
 var testColCanvasActive=false;
 var myConsoleLoggingActive=false;
 var gunCountdown, gunCountdownStart = 10;
+
+//hard code these for now. 
+//TODO set these at level load time. (eg call some function loadLevel...)
+
+
+//small level
+/*
+var LEVEL_WIDTH = 512;
+var LEVEL_HEIGHT = 1024; 
+var LEVEL_DESTR_SRC = "img/egypt_level1-t.png"; //-t is black changed to transparent
+var LEVEL_INDEST_SRC = "img/egypt_level1i-t.png";
+*/
+//big level (same as GF2 level 2* upscaled (21x63 x 32x32))
+var LEVEL_WIDTH = 672;
+var LEVEL_HEIGHT = 2016; 
+var LEVEL_DESTR_SRC = "img/egypt_level-big-t.png";
+var LEVEL_INDEST_SRC = "img/egypt_level-bigi-t.png";
+
+var LEVEL_NUMPIX = LEVEL_WIDTH*LEVEL_HEIGHT;
 
 
 var levelImage, levelImageLoaded;	//TODO move to some object
@@ -50,16 +68,16 @@ var preMadeCircleImage = [];
 //for now just use 1 value per pixel to see how stacks up against standard
 //array
 
-var collisionData8Buffer = new ArrayBuffer(512*1024);
+var collisionData8Buffer = new ArrayBuffer(LEVEL_NUMPIX);
 var collisionData8View = new Uint8Array(collisionData8Buffer);
 var preMadeCircleColData8View= [];
 
 //single bit per pixel array. 
-var collisionDataBufferDoubleBits = new ArrayBuffer(512*1024*2/8);
+var collisionDataBufferDoubleBits = new ArrayBuffer(LEVEL_NUMPIX*2/8);
 var collisionDataDoubleBits32View = new Uint32Array(collisionDataBufferDoubleBits); 
 			//3* scaled up GF2 levels are odd multiple of 16. each 32 bit value covers 16 pixels (2 bits per pixel)
 //initialise it (unsure if required)
-for (var ii=0;ii<512*1024/16;ii++){
+for (var ii=0;ii<LEVEL_NUMPIX/16;ii++){
 	collisionDataDoubleBits32View[ii]= 0;
 }
 			
@@ -67,7 +85,7 @@ var preMadeCircleColDataDoubleBits32View= [];	//2 bits per level pixel - 1 for i
 
 			
 var screenCtx; //for another canvas to demonstrate scrolling
-var scroll; //move to global since also used by particle drawing. (should amend this...)
+var scroll_x, scroll_y; //move to global since also used by particle drawing. (should amend this...)
 
 //for framerate
 var lastDrawTime = 0;
@@ -85,7 +103,7 @@ var cursor_x=50;
 var cursor_y=48;
 var cursor_vx=0;
 var cursor_vy=0;
-
+var interp_cursor_x, interp_cursor_x, interpFactor;
 
 //background image for parallax. some simple system where paste it only if loaded - if add more resources to game, better to ensure all loaded and only then 
 //ran rendering code
@@ -151,7 +169,7 @@ window.onload = function() {
 		levelImageLoaded = true;
 		afterLoadFunc();
 	}
-	levelImage.src = "img/egypt_level1-t.png"; //-t is black changed to transparent
+	levelImage.src = LEVEL_DESTR_SRC; 
 
 	levelIndestImage = new Image();
 	levelIndestImage.onload = function(){
@@ -159,7 +177,7 @@ window.onload = function() {
 		levelIndestImageLoaded = true;
 		afterLoadFunc();
 	}
-	levelIndestImage.src = "img/egypt_level1i-t.png";
+	levelIndestImage.src = LEVEL_INDEST_SRC;
 	
 	//background image
 	bgImg = new Image();
@@ -168,9 +186,8 @@ window.onload = function() {
 		bgImgLoaded = true;
 		afterLoadFunc();
 	}
-	bgImg.src = "img/desertdull.png";
-	
-	
+	//bgImg.src = "img/desertdull.png";
+	bgImg.src = "img/test_card.png";
 	
 	
 	//test? have a 2nd canvas to draw collision data into?
@@ -178,6 +195,16 @@ window.onload = function() {
 	
 	//temp - make other canvas visible
 	var screencanvas = document.getElementById('screencanvas');
+	
+	//override width/height? (can remove these settings from html doc)
+	screencanvas.width = 672;
+	screencanvas.height = 504;	//4:3 aspect"
+	
+	//larger than the level... - don't handle this yet!
+	//screencanvas.width = 1024;
+	//screencanvas.height = 1024;
+	
+	
 	screencanvas.style.display = 'block';
 	screenCtx = screencanvas.getContext('2d');
 	
@@ -297,7 +324,7 @@ function setupCircleImageAndColData(rad){
 }
 
 function getCollisionPixelDataXY(x,y){
-	return getCollisionPixelData(y*512 + x); //optimise with bit shift?
+	return getCollisionPixelData(y*LEVEL_WIDTH + x); //optimise with bit shift?
 }
 function getCollisionPixelData(pix){
 	//collisionDataSingleBits16View[ii >> 4] &= ( (levelImageData[jj]===0 ? 0:1) <<(ii & 15));
@@ -338,58 +365,39 @@ function updateDisplay(timestamp) {
 	
 		
 	//var scroll = (timestamp/4) % (1024-sc_h);    //height of level - heigh of screen
+	var scroll_max_x = canvas2.width - sc_w;
+	var scroll_max_y = canvas2.height - sc_h;
 	
-	var scroll_max = canvas2.height - sc_h;
-
-    var interpFactor = mechanicsLeadTime / mechanicsTimestep; 	//interpolated position 
-	var interp_cursor_x = cursor_x - cursor_vx*interpFactor;
-	var interp_cursor_y = cursor_y - cursor_vy*interpFactor;
+    interpFactor = mechanicsLeadTime / mechanicsTimestep; 	//interpolated position 
+	interp_cursor_x = cursor_x - cursor_vx*interpFactor;
+	interp_cursor_y = cursor_y - cursor_vy*interpFactor;
 	
-	scroll = Math.min( Math.max( interp_cursor_y - (sc_h/2) , 0 ) , scroll_max ); // centre cursor, but don't scroll beyond end of level
+	scroll_x = Math.min( Math.max( interp_cursor_x - (sc_w/2) , 0 ) , scroll_max_x );
+	scroll_y = Math.min( Math.max( interp_cursor_y - (sc_h/2) , 0 ) , scroll_max_y ); // centre cursor, but don't scroll beyond end of level
 	
-	
-	if (bgImgLoaded == true){
-		//screenCtx.drawImage(bgImg, 0,0, 256,256,
-		//				0,0, 512,512);			// stretches 256*256 background image to fill 512*512 screen - does not scroll
 		
-		//blow up subsection of background, such that background scrolls slower than level
-		//to do this, since half of the level is shown at a time, more than half of the background should be shown at a time.
+	screenCtx.drawImage(bgImg, (2048-sc_w)/32 + scroll_x/16, (2048-sc_h)/32 + scroll_y/16 , sc_w/8 ,sc_h/8,		//note this does not centre view - ends up on the left, for
+						0,0, sc_w,sc_h);																	//images taller than wide.
 		
-		//show 196*196 of 256*256 at a time, x centred, y from touching top to touching bottom.
-		screenCtx.drawImage(bgImg, 32 ,64*scroll/scroll_max, 192 ,192,
-						0,0, 512,512);
-						
-		//log these numbers to help investigate problems on osx safari
-		//console.log( "_drawImage number %f" , 64*scroll/scroll_max );
-						
-		//scroll background with foreground (check looks ok)				
-		//screenCtx.drawImage(bgImg, 64 ,scroll/scroll_max * 128, 128 ,128,
-		//				0,0, 512,512);			
-						
-	} else {
-		screenCtx.fillStyle = "rgba(0,255,0,1)";	//probably don't need to set this every frame, but will replace with parallax bg anyway
-		screenCtx.fillRect(0,0,sc_w, sc_h);
-	}
-	
-	
-	screenCtx.drawImage(canvas2, 0,scroll, sc_w,sc_h,
+		
+	screenCtx.drawImage(canvas2, scroll_x,scroll_y, sc_w,sc_h,
                                         0,0, sc_w, sc_h);	//copy from relevant part of destructible canvas, given scroll value to on-screen canvas 
 	if (canvas2i){
-		screenCtx.drawImage(canvas2i, 0,scroll, sc_w,sc_h,
+		screenCtx.drawImage(canvas2i, scroll_x,scroll_y, sc_w,sc_h,
                                         0,0, sc_w, sc_h);	//same for indestructible part (this is a temporary, inefficient solution!)
 	}
 	
 	//put a cursor image on screen - intend to use this as a "player object" to demonstrate scrolling level by moving object
 	
 	
-	var coldatapix= ~~cursor_x  + 512*~~cursor_y;	//might fail if outside of bounds
+	var coldatapix= ~~cursor_x  + LEVEL_WIDTH*~~cursor_y;	//might fail if outside of bounds
 	//console.log(".. " + coldatapix + ".." + collisionData[coldatapix]);
 
 	screenCtx.fillStyle = ( collisionData8View[coldatapix]==1 ? "rgba(255,0,0,1)" : "rgba(255,255,255,1)");	//red or white
-    screenCtx.fillRect(interp_cursor_x-5,interp_cursor_y-scroll-5,10, 10);
+    screenCtx.fillRect(interp_cursor_x-scroll_x-5,interp_cursor_y-scroll_y-5,10, 10);
 	
 	screenCtx.fillStyle = ( getCollisionPixelData(coldatapix)==1 ? "rgba(255,0,0,1)" : "rgba(255,255,255,1)");	//red or white
-    screenCtx.fillRect(interp_cursor_x-3,interp_cursor_y-scroll-3,10, 10);
+    screenCtx.fillRect(interp_cursor_x-scroll_x-3,interp_cursor_y-scroll_y-3,10, 10);
 	
 	//indicate on the whole level canvas at top of screen where scrolled to
 	//ctx.fillStyle = "rgba(255,0,255,1)";	//magenta
@@ -537,7 +545,7 @@ function makeACircle(evt){
 		//console.log("yincutmask = " + yincutmask);
 		
 		for (blockx = levelxblockstart; blockx<levelxblockend; blockx++ ){
-			blockidx = (512/16)*jj + blockx;
+			blockidx = (LEVEL_WIDTH/16)*jj + blockx;
 			
 			//cutblockx = blockx - ( (x- radius) >>> 4 ) -1;
 			
@@ -591,13 +599,13 @@ function updateCollisionTestCanvas(){
 	var testctx = testcanvas.getContext('2d');
 
 	testctx.fillStyle="black";
-	testctx.fillRect(0,0,512,1024);
+	testctx.fillRect(0,0,LEVEL_WIDTH,LEVEL_HEIGHT);
 	
 	testctx.fillStyle="white";
 	var pix = 0;
 	
-	for (var yy=0; yy<1024;yy++){
-		for (var xx=0; xx<512;xx++){
+	for (var yy=0; yy<LEVEL_HEIGHT;yy++){
+		for (var xx=0; xx<LEVEL_WIDTH;xx++){
 			//if (collisionData[pix]==true){
 			//if (collisionData8View[pix]==1){
 			if (getCollisionPixelData(pix)!= 0){	//something is on
@@ -611,8 +619,8 @@ function updateCollisionTestCanvas(){
 	//show where destr terrain is
 	testctx.fillStyle="blue";
 	pix = 0;
-	for (var yy=0; yy<1024;yy++){
-		for (var xx=0; xx<512;xx++){
+	for (var yy=0; yy<LEVEL_HEIGHT;yy++){
+		for (var xx=0; xx<LEVEL_WIDTH;xx++){
 			//if (collisionData[pix]==true){
 			//if (collisionData8View[pix]==1){
 			if (getCollisionPixelData(pix) == 1){
@@ -625,8 +633,8 @@ function updateCollisionTestCanvas(){
 	//show where indestr terrain is
 	testctx.fillStyle="yellow";
 	pix = 0;
-	for (var yy=0; yy<1024;yy++){
-		for (var xx=0; xx<512;xx++){
+	for (var yy=0; yy<LEVEL_HEIGHT;yy++){
+		for (var xx=0; xx<LEVEL_WIDTH;xx++){
 			//if (collisionData[pix]==true){
 			//if (collisionData8View[pix]==1){
 			if (getCollisionPixelData(pix) == 2){
@@ -639,8 +647,8 @@ function updateCollisionTestCanvas(){
 	
 	testctx.fillStyle="green";
 	pix = 0;
-	for (var yy=0; yy<1024;yy++){
-		for (var xx=0; xx<512;xx++){
+	for (var yy=0; yy<LEVEL_HEIGHT;yy++){
+		for (var xx=0; xx<LEVEL_WIDTH;xx++){
 			//if (collisionData[pix]==true){
 			//if (collisionData8View[pix]==1){
 			if (getCollisionPixelData(pix) == 3){
@@ -742,8 +750,8 @@ function updateMechanics(){
 function makeRandomCircles(){
 	var circnum, circleX, circleY;
 	for (circnum=0;circnum<20;circnum++){
-        circleX = 512*Math.random() | 0;
-        circleY = 1024*Math.random() | 0;		
+        circleX = LEVEL_WIDTH*Math.random() | 0;
+        circleY = LEVEL_HEIGHT*Math.random() | 0;		
 		makeACircle({offsetX:circleX, offsetY:circleY});
 	}
 }
@@ -787,8 +795,8 @@ Bomb.prototype.iterate = function(){
 	var willDestroy = false;
 	if (this.x<0){this.x=0; willDestroy=true;}
 	if (this.y<0){this.y=0; willDestroy=true;}
-	if (this.x>=512){this.x=512; willDestroy=true;}
-	if (this.y>=1024){this.y=1024; willDestroy=true;}
+	if (this.x>=LEVEL_WIDTH){this.x=LEVEL_WIDTH; willDestroy=true;}
+	if (this.y>=LEVEL_HEIGHT){this.y=LEVEL_HEIGHT; willDestroy=true;}
 
 	if (willDestroy==true){
 		this.destroy();
@@ -808,7 +816,7 @@ Bomb.prototype.draw = function(){
 	if (this.alive==true){
 		//should actually remove the bomb when it is destroyed! when do that, no point in the if here.
 		//console.log( "drawing a bomb at x = " + this.x + ", y = " + this.y);
-		screenCtx.fillRect(this.x-2,this.y-scroll-2,4,4);	//note this has no interpolation currently 
+		screenCtx.fillRect(this.x-interpFactor*this.vx-scroll_x-2,this.y-interpFactor*this.vy-scroll_y-2,4,4);	//note this has no interpolation currently 
 	}
 }
 
@@ -832,7 +840,6 @@ function afterLoadFunc(){
 		console.log("not all images loaded. returning");
 		return;
 	}
-	
 	
 	setupCircleImageAndColData(8);
 	setupCircleImageAndColData(16);
@@ -862,9 +869,9 @@ function afterLoadFunc(){
 
 		
 	//populate collision data array from canvas.
-	var levelImageData = ctx2.getImageData(0,0,512,1024).data;	//not sure this is the most direct way to go getting data from image
+	var levelImageData = ctx2.getImageData(0,0,LEVEL_WIDTH,LEVEL_HEIGHT).data;	//not sure this is the most direct way to go getting data from image
 	console.log("imagedata length = " + levelImageData.length);
-	var numPix = 512*1024;
+	var numPix = LEVEL_NUMPIX;
 	for (var ii=0,jj=3;ii<numPix;ii++,jj+=4){
 
 			collisionData8View[ii]	= levelImageData[jj]===0 ? 0:1;	 //populate collision array from alpha channel of level image.
@@ -899,9 +906,9 @@ function afterLoadFunc(){
 	ctx2i.drawImage(levelIndestImage,0,0);
 			
 	//populate collision data array from canvas. - ANOTHER COPYPASTA
-	var levelImageDatai = ctx2i.getImageData(0,0,512,1024).data;	//not sure this is the most direct way to go getting data from image
+	var levelImageDatai = ctx2i.getImageData(0,0,LEVEL_WIDTH,LEVEL_HEIGHT).data;	//not sure this is the most direct way to go getting data from image
 	console.log("imagedata length (indest) = " + levelImageDatai.length);
-	var numPix = 512*1024;
+	var numPix = LEVEL_NUMPIX;
 	for (var ii=0,jj=3;ii<numPix;ii++,jj+=4){
 		collisionDataDoubleBits32View[ii >>> 4] |= ( (levelImageDatai[jj]===0 ? 0:1) << ((ii & 15)*2  +1) );
 	}
