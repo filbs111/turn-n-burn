@@ -90,6 +90,7 @@ var lastDrawTime = 0;
 var framesRecently = 0;
 var mechanicsLeadTime = 0;
 var mechanicsTimestep = 10; //10ms so 100 fps mechanics 
+//var mechanicsTimestep = 20; //20ms so 50 fps mechanics 
 
 
 //really should learn about ho to use objects to organise things! eg using something to make vectors
@@ -249,7 +250,7 @@ window.onload = function() {
 		for (var ii=0;ii<numdirections;ii++){
 			vx = cursor_vx + speed*Math.sin(angle);
 			vy = cursor_vy + speed*Math.cos(angle);
-			new Bomb(cursor_x, cursor_y, vx, vy);
+			new Bomb(cursor_x, cursor_y, vx, vy, 300 );
 			angle+=anglestep;
 		}
 	});
@@ -262,7 +263,7 @@ window.onload = function() {
 		for (var ii=0;ii<numshots;ii++){
 			vx = cursor_vx + speed*gaussRand();
 			vy = cursor_vy + speed*gaussRand();
-			new Bomb(cursor_x, cursor_y, vx, vy);
+			new Bomb(cursor_x, cursor_y, vx, vy, 300);
 		}
 	});
 	
@@ -274,7 +275,7 @@ window.onload = function() {
 			console.log("pressed a key. weapon name = " + currentWeapon.name );
 		});
 	}
-	for (var ii=0;ii<3;ii++){
+	for (var ii=0;ii<4;ii++){
 		thatweapon = weapons[ii];
 		console.log("hopefully adding a callback for a weapon named " + thatweapon['name']);
 		addNumberClickHandler(ii,48+ii);
@@ -437,16 +438,7 @@ function updateDisplay(timestamp) {
 	//ctx.fillStyle = "rgba(255,0,255,1)";	//magenta
     //ctx.fillRect(cursor_x-5,scroll-5,10, 10);
 	
-	
-	//draw a line indicating direction of fire.
-	//gunAngle = 30;	//clockwise from straight up.
-/*	screenCtx.beginPath();
-	screenCtx.moveTo(interp_cursor_x-scroll_x , interp_cursor_y-scroll_y);
-	screenCtx.lineTo(interp_cursor_x-scroll_x + gunLength*sinGunAngle , interp_cursor_y-scroll_y - gunLength*cosGunAngle);
-	//screenCtx.closePath();	//seems superfluous
-	screenCtx.stroke();*/
-	
-	//a triangle!
+	//draw triangle for spaceship
 	screenCtx.strokeStyle = 'blue';
 	screenCtx.fillStyle = 'blue';
 	screenCtx.beginPath();
@@ -459,7 +451,17 @@ function updateDisplay(timestamp) {
 	screenCtx.fill();
 	screenCtx.stroke();
 	
+	//draw some line to show normal vector for where spaceship is (to test)
+	var sshipNormal = getNormal(~~cursor_x, ~~cursor_y);
 	
+	//override for testing drawing
+	//sshipNormal= {x:1, y:1};
+	
+	screenCtx.strokeStyle = 'red';
+	screenCtx.beginPath();
+	screenCtx.moveTo(cursor_x -scroll_x , cursor_y -scroll_y );
+	screenCtx.lineTo(cursor_x + sshipNormal.x*100 -scroll_x , cursor_y + sshipNormal.y*100 -scroll_y );
+	screenCtx.stroke();
 	
 	for (var b in bombs){
 		//console.log("processing a bomb in draw loop");
@@ -772,11 +774,6 @@ function updateMechanics(){
 		cursor_vy -= 0.06*cosGunAngle;
 	}
 	
-	for (var b in bombs){
-		//console.log("processing a bomb in game loop");
-		bombs[b].iterate();
-	}
-	
 	//dropping bombs
 	if (gunCountdown>0){
 		gunCountdown--;
@@ -784,8 +781,13 @@ function updateMechanics(){
 		if (keyThing.bombKey()){
 			gunCountdown = currentWeapon.fire_interval;
 			//console.log("dropped a bomb!");
-			new Bomb(cursor_x, cursor_y, cursor_vx + currentWeapon.muz_vel*sinGunAngle , cursor_vy - currentWeapon.muz_vel*cosGunAngle);
+			new Bomb(cursor_x, cursor_y, cursor_vx + currentWeapon.muz_vel*sinGunAngle , cursor_vy - currentWeapon.muz_vel*cosGunAngle, 300);
 		}
+	}
+	
+	for (var b in bombs){
+		//console.log("processing a bomb in game loop");
+		bombs[b].iterate();
 	}
 	
 	for (var e in explosions){
@@ -804,45 +806,121 @@ function makeRandomCircles(){
 	}
 }
 
+function getNormal(x,y){
+	//return normal vector for level at a point
+	//in future, possibly better to have a function that returns collision point and normal, for path start and end points
+	
+	//for now, have detection of collision separate, and when collision happens, call this function to get the normal.
+	//will be used for: bouncing shots, and spray shots away from walls.
+	
+	//rough way to do this for 1st instance:
+	//for a set of points around input co-ordinate, look at whether level exists there (via getCollisionPixelDataXY )
+	//look at centre of mass of that distribution of points. compare with centre of points distribution
+
+	//input is level grid-co-ordinates - inside that grid square, output should be same. for current collision check, don't have exact collision point anyway.
+	//take a 3x3 grid around point. will mean bullets don't bounce off a 1 pixel width line. maybe can tweak to using input co-ords moved back
+	//this works as expectedm, but being just 3x3, won't capture "average" gradient for lines that aren't horiz/vertical/diagonal.
+	
+	var masses = new Array(9);
+	var startX = x-1;
+	var startY = y-1;
+	var massIdx=0;
+	var totalMass = 0;
+	var mass;
+	for (jj=0;jj<3;jj++){
+		for(ii=0;ii<3;ii++){
+			mass = getCollisionPixelDataXY(startX+ii , startY+jj) ? 1:0;
+			totalMass+=mass;
+			masses[massIdx++]= mass;
+		}
+	}
+	var massDistanceX = masses[1]+masses[4]+masses[7]
+				+ 2 * ( masses[2]+masses[5]+masses[8] ); 
+	var massDistanceY = masses[3]+masses[4]+masses[5]
+				+ 2 * ( masses[6]+masses[7]+masses[8] ); 
+	var normX = totalMass - massDistanceX;
+	var normY = totalMass - massDistanceY;
+	
+	//normalise
+	var mag = Math.sqrt(normX*normX + normY*normY);
+	if (mag ==0){return {x:0,y:0};};
+	console.log("xnormal : " + normX + " , ynormal : " + normY );
+	return {x:normX/mag,y:normY/mag};
+	
+}
 
 
 //from tutorial: https://www.youtube.com/watch?v=YCI8uqePkrc
-function Bomb(x,y,vx,vy){
+function Bomb(x,y,vx,vy,t){
 	this.x = x;
 	this.y = y;
 	this.vx = vx;
 	this.vy = vy;
+	this.timer = t;
 	this.alive = true;
 	this.id = bombidx;
 	bombs[bombidx++]=this;
 }
 Bomb.prototype.iterate = function(){
-	this.x+=this.vx;
-	this.y+=this.vy;
-	this.vy+=0.025;
 	
-	//world limits
-	var willDestroy = false;
-	if (this.x<0){this.x=0; willDestroy=true;}
-	if (this.y<0){this.y=0; willDestroy=true;}
-	if (this.x>=LEVEL_WIDTH){this.x=LEVEL_WIDTH; willDestroy=true;}
-	if (this.y>=LEVEL_HEIGHT){this.y=LEVEL_HEIGHT; willDestroy=true;}
+	//for simple improvement to collision checking every mechanics timestep, do a number of steps such that there is a maximum distance between collision
+	//point checks. if make that distance 1 square, won't tunnel through things, with exception of corners (including 2 rectangles touching at corners)
+	//if want to cover those, want to move to proper line algorithm. if want to be fast, should implement quadtree, or maybe SAT
 
-	if (willDestroy==true){
-		this.destroy();
-	} else if (getCollisionPixelDataXY(~~this.x,~~this.y)!=0){
-		//collision with arena....
-		//seems like a risk here that ~~ could get some number outside of arena despite checking the above....	
-		console.log("detonating bomb . x = " + ~~this.x + ", y = " + ~~this.y );
-		this.destroy();
+	if (this.timer !=0){
+		if(--this.timer ==0){
+			this.destroy();
+		}
 	}
+	
+	var numSteps = Math.ceil(Math.max(Math.abs(this.vx), Math.abs(this.vy)));
+	var vxstep = this.vx/numSteps;
+	var vystep = this.vy/numSteps;
+	for (var ii=0;ii<numSteps;ii++){
+		this.x+=vxstep;
+		this.y+=vystep;
+		
+		//world limits
+		var willDestroy = false;
+		if (this.x<0){this.x=0; willDestroy=true;}
+		if (this.y<0){this.y=0; willDestroy=true;}
+		if (this.x>=LEVEL_WIDTH){this.x=LEVEL_WIDTH; willDestroy=true;}
+		if (this.y>=LEVEL_HEIGHT){this.y=LEVEL_HEIGHT; willDestroy=true;}
+
+		if (willDestroy==true){
+			this.destroy();
+		} else if (getCollisionPixelDataXY(~~this.x,~~this.y)!=0){
+			//collision with arena....
+			//seems like a risk here that ~~ could get some number outside of arena despite checking the above....	
+			//this.destroy();
+			this.bounce();
+			return;
+		}
+	}
+	
+	this.vy+=0.025;	//not sure if should add at start or end. not sure if current setup is consistent with interpolation.
+	
 }
 Bomb.prototype.destroy = function(){
+	console.log("detonating bomb . x = " + ~~this.x + ", y = " + ~~this.y );
+
 	this.alive = false;
 	makeACircle({offsetX:~~this.x, offsetY:~~this.y});
 	delete bombs[this.id];
 	//new Explosion(~~this.x, ~~this.y , 0,0, 100,0.5 );	//fixed size for now - seems about right for radius 48
 	new Explosion(~~this.x, ~~this.y , 0,0, 1.6*explosionRadioRadius,1 );
+}
+Bomb.prototype.bounce = function(){
+	//reflection off normal http://www.3dkingdoms.com/weekly/weekly.php?a=2  Vnew = b * ( -2*(V dot N)*N + V )
+	var norm = getNormal(~~this.x, ~~this.y);
+	var COR =0.6; //coefficient of restitution
+	var vDotN = norm.x * this.vx + norm.y * this.vy; 
+	//console.log("vDotN = " + vDotN);
+	if (vDotN>=0){return;}	//this happens sometimes because bounce is from INSIDE object, next iterative step away may still be inside object (less likely with COR)
+	this.vx -= 2* vDotN*norm.x ; 
+	this.vy -= 2* vDotN*norm.y ; 
+	this.vx *=COR;
+	this.vy *=COR;
 }
 Bomb.prototype.draw = function(){
 	screenCtx.fillStyle="white";	
