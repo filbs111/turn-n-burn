@@ -19,12 +19,10 @@ if (window.performance.now) {
 //CONFIG
 var testColCanvasActive=false;
 var myConsoleLoggingActive=false;
-var gunCountdown, gunCountdownStart = 10;
+var gunCountdown;
 
 //hard code these for now. 
 //TODO set these at level load time. (eg call some function loadLevel...)
-
- 
 //small level
 /*
 var LEVEL_WIDTH = 512;
@@ -93,10 +91,6 @@ var framesRecently = 0;
 var mechanicsLeadTime = 0;
 var mechanicsTimestep = 10; //10ms so 100 fps mechanics 
 
-var mouseX =0;
-var mouseY =0;
-var mouseClicked = false;
-
 
 //really should learn about ho to use objects to organise things! eg using something to make vectors
 var cursor_x=50;
@@ -115,7 +109,7 @@ var gunLength = 10,
 //ran rendering code
 var bgImg;
 var bgImgLoaded = false;
-
+var expImgLoaded = false;
 
 var keyThing;	//used in conjnuction with js_utils/keys.js
 
@@ -130,8 +124,7 @@ var explosionRadioRadius=48; //?? should initialise to same value as selected ra
 
 //taken from fullscreen test project
 window.onresize = aspectFitCanvas;		//this works if not explicitly using HTML5. ?!!!!!!!
-//window.onresize = aspectFitCanvas;
-   
+
    
 function aspectFitCanvas(evt) {
 
@@ -179,11 +172,6 @@ window.onload = function() {
 	});
 
 	canvas = document.getElementById('canvas');
-	canvas.addEventListener("mousedown", respondToMouseclick);
-    canvas.addEventListener("mouseup", respondToMouseup); 
-    canvas.addEventListener("mouseout", respondToMouseup); //treat as same as unclicking mouse.      
-    canvas.addEventListener("mousemove", respondToMousemove);
-    
 	canvas.style.backgroundColor='rgba(0, 0, 0, 255)';
 
 	//load level image
@@ -216,7 +204,9 @@ window.onload = function() {
 	//explosion image
 	explImg = new Image();
 	explImg.onload = function(){
+		expImgLoaded = true;
 		console.log('explosion image loaded');
+		afterLoadFunc();
 	};
 	explImg.src='img/expl10.png';
 	
@@ -450,11 +440,25 @@ function updateDisplay(timestamp) {
 	
 	//draw a line indicating direction of fire.
 	//gunAngle = 30;	//clockwise from straight up.
-	screenCtx.beginPath();
+/*	screenCtx.beginPath();
 	screenCtx.moveTo(interp_cursor_x-scroll_x , interp_cursor_y-scroll_y);
 	screenCtx.lineTo(interp_cursor_x-scroll_x + gunLength*sinGunAngle , interp_cursor_y-scroll_y - gunLength*cosGunAngle);
 	//screenCtx.closePath();	//seems superfluous
+	screenCtx.stroke();*/
+	
+	//a triangle!
+	screenCtx.strokeStyle = 'blue';
+	screenCtx.fillStyle = 'blue';
+	screenCtx.beginPath();
+	var backx = interp_cursor_x-scroll_x - gunLength*0.4*sinGunAngle;
+	var backy = interp_cursor_y-scroll_y + gunLength*0.4*cosGunAngle;
+	screenCtx.moveTo(interp_cursor_x-scroll_x + gunLength*sinGunAngle , interp_cursor_y-scroll_y - gunLength*cosGunAngle);
+	screenCtx.lineTo(backx + gunLength*0.6*cosGunAngle , backy + gunLength*0.6*sinGunAngle);
+	screenCtx.lineTo(backx - gunLength*0.6*cosGunAngle , backy - gunLength*0.6*sinGunAngle);
+	screenCtx.lineTo(interp_cursor_x-scroll_x + gunLength*sinGunAngle , interp_cursor_y-scroll_y - gunLength*cosGunAngle);
+	screenCtx.fill();
 	screenCtx.stroke();
+	
 	
 	
 	for (var b in bombs){
@@ -476,25 +480,6 @@ function updateDisplay(timestamp) {
     screenCtx.strokeText( framesRecently.toFixed(1) , 50,50);
 	
 }
-
-
-function respondToMouseup(evt){
-    mouseClicked=false;
-}
-
-function respondToMousemove(evt){
-    mouseX = evt.offsetX;
-    mouseY = evt.offsetY;
-}
-
-
-function respondToMouseclick(evt){
-    mouseClicked = true;
-    mouseX = evt.offsetX;
-    mouseY = evt.offsetY;
-    makeACircle(evt);
-}
-
 
 function makeACircle(evt){
     
@@ -751,29 +736,16 @@ function updateCollisionTestCanvas(){
 }
 
 function updateMechanics(){
-	/*
-    //take chunks out of terrain at random
-    if (mouseClicked == true){
-        for (var circle=0;circle<4;circle++){
-            var randSize = 100;
-            var circleX = (mouseX - randSize + (2*randSize)*Math.random()) | 0;
-            var circleY = (mouseY - randSize + (2*randSize)*Math.random()) | 0;
-            makeACircle({offsetX:circleX, offsetY:circleY});
-
-            console.log("circleX : " + circleX + ", circleY : " + circleY );
-            //var fakeEvent;
-            //fakeEvent.offset
-        }
-    }
-	*/
 	
 	//movement.
 	cursor_vx += 0.2 * (keyThing.rightKey() - keyThing.leftKey());
 	cursor_vy += 0.2 * (keyThing.downKey() - keyThing.upKey());
-	cursor_vx*=0.95;
-	cursor_vy*=0.95;
+	cursor_vx*=0.99;
+	cursor_vy*=0.99;
+	cursor_vy+=0.025;	//same gravity as bombs	
 	cursor_x+=cursor_vx;
 	cursor_y+=cursor_vy;
+
 	
 	//don't go outside level
 	var x_min =5;
@@ -794,6 +766,11 @@ function updateMechanics(){
 	gunAngleRadians = Math.PI * gunAngle / 180;
 	cosGunAngle = Math.cos(gunAngleRadians);
 	sinGunAngle = Math.sin(gunAngleRadians);
+	//thrust
+	if(keyThing.keystate(191)){	// "/" key
+		cursor_vx += 0.06*sinGunAngle;
+		cursor_vy -= 0.06*cosGunAngle;
+	}
 	
 	for (var b in bombs){
 		//console.log("processing a bomb in game loop");
@@ -805,7 +782,7 @@ function updateMechanics(){
 		gunCountdown--;
 	} else {
 		if (keyThing.bombKey()){
-			gunCountdown = gunCountdownStart;
+			gunCountdown = currentWeapon.fire_interval;
 			//console.log("dropped a bomb!");
 			new Bomb(cursor_x, cursor_y, cursor_vx + currentWeapon.muz_vel*sinGunAngle , cursor_vy - currentWeapon.muz_vel*cosGunAngle);
 		}
@@ -876,35 +853,18 @@ Bomb.prototype.draw = function(){
 	}
 }
 
-function gaussRand(){
-	//note currently generally becomes bigger as increase numTimes. (maybe should divide by sqrt(numtimes?))
-	var sqrtNumTimes = 2;
-	var numTimes = sqrtNumTimes*sqrtNumTimes;
-	var total = -numTimes/2;
-	for (var ii=0;ii<numTimes;ii++){
-		total+=Math.random();
-	}
-	return total/sqrtNumTimes;
-}
-
-
-
 function afterLoadFunc(){
-	if (bgImgLoaded & levelImageLoaded & levelIndestImageLoaded){
+	if (bgImgLoaded & levelImageLoaded & levelIndestImageLoaded & expImgLoaded){
 		console.log("all images loaded");
 	} else {
 		console.log("not all images loaded. returning");
 		return;
 	}
 	
-	setupCircleImageAndColData(8);
-	setupCircleImageAndColData(16);
-	setupCircleImageAndColData(24);
-    setupCircleImageAndColData(48);
-	setupCircleImageAndColData(96);
-	setupCircleImageAndColData(192);
-	setupCircleImageAndColData(384);
-	
+	var circleSizes = [8,16,24,48,96,192,384];
+	circleSizes.forEach(function(cs){
+		setupCircleImageAndColData(cs);
+	});
 	
 	lw = levelImage.width;
 	lh = levelImage.height;
