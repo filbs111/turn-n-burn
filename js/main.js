@@ -1,7 +1,3 @@
-//load in a level image
-//generate collision data for the level image
-//when blow a hole in landscape - draw to canvas AND edit collision data
-
 //high res timer thing. from http://stackoverflow.com/questions/6233927/microsecond-timing-in-javascript
 if (window.performance.now) {
     myconsolelog("Using high performance timer");
@@ -17,6 +13,7 @@ if (window.performance.now) {
 }
 
 //CONFIG
+var test1CanvasActive=false;
 var testColCanvasActive=false;
 var myConsoleLoggingActive=false;
 var gunCountdown;
@@ -57,15 +54,9 @@ var testcanvas;	//to draw collision detection data to check it looks OK
 var preMadeCircleImage = [];
 
 
-//do collision data in a more efficient way
 //using typed array should ensure is dense array.
-//also, can use smaller number of bits per pixel 
-//in future, can use offset views and store more than 1 pixel of data
-//per value in the array (eg 16 pixels in one 16 bit number)
 
-//for now just use 1 value per pixel to see how stacks up against standard
-//array
-
+//for now just use 1 value per pixel to see how stacks up against standard array
 var collisionData8Buffer = new ArrayBuffer(LEVEL_NUMPIX);
 var collisionData8View = new Uint8Array(collisionData8Buffer);
 var preMadeCircleColData8View= [];
@@ -90,8 +81,6 @@ var lastDrawTime = 0;
 var framesRecently = 0;
 var mechanicsLeadTime = 0;
 var mechanicsTimestep = 10; //10ms so 100 fps mechanics 
-//var mechanicsTimestep = 20; //20ms so 50 fps mechanics 
-
 
 //really should learn about ho to use objects to organise things! eg using something to make vectors
 var cursor_x=50;
@@ -106,14 +95,12 @@ var gunLength = 10,
 	cosGunAngle,
 	sinGunAngle;
 
-//background image for parallax. some simple system where paste it only if loaded - if add more resources to game, better to ensure all loaded and only then 
-//ran rendering code
+//background image for parallax. 
 var bgImg;
 var bgImgLoaded = false;
 var expImgLoaded = false;
 
 var keyThing;	//used in conjnuction with js_utils/keys.js
-
 
 
 var bombs = {};	//this should probably be some kind of object so can have method to draw all etc
@@ -153,7 +140,6 @@ function aspectFitCanvas(evt) {
         screencanvas.style.height = "" + ( ww * screencanvas.height / screencanvas.width ) + "px";
     }
 }
-
 
 
 window.onload = function() {
@@ -310,7 +296,6 @@ function premakeCircleImage(rad){
 	
 	
     //draw a circle. slow but only done once per size
-    
 	//var returnColDataArray = Array.apply(null, Array(4*radsq));	//this is faster but seems unable to make the 400x400 array
     var ii,jj,jsq,rsq,idx=0,cdata_idx=0;
     for (jj=0;jj<size;jj++){
@@ -323,19 +308,12 @@ function premakeCircleImage(rad){
                 thisImageDataData[idx+2]=0;
                 thisImageDataData[idx+3]=255;
 
-				dataView8[cdata_idx]=0;
-				
+				dataView8[cdata_idx]=0;		
             } else {
-                //thisImageDataData[idx]=255
-                //thisImageDataData[idx+1]=255
-                //thisImageDataData[idx+2]=255
-                //thisImageDataData[idx+3]=255
-
 				dataView8[cdata_idx]=1;
 				
 				//dataViewSinglePix[cdata_idx >>> 4] |= ( 1 <<(cdata_idx & 15));		//this isn't efficient, but not really important since done during loading
-				dataViewSinglePix[cdata_idx >>> 4] |= ( 1 << ((cdata_idx & 15)*2) );		//this isn't efficient, but not really important since done during loading
-				
+				dataViewSinglePix[cdata_idx >>> 4] |= ( 1 << ((cdata_idx & 15)*2) );	//this isn't efficient, but not really important since done during loading
             }
             idx+=4;
 			cdata_idx++;
@@ -383,16 +361,13 @@ function updateDisplay(timestamp) {
         mechanicsLeadTime += mechanicsTimestep;
     }
 	
-
-	
-	//for entire level image showing at top of the screen
-    //copy from the offscreen level canvas to the on-screen canvas
-   // ctx.drawImage(canvas2,timestamp % 10,0);
-    //ctx.clearRect(0,0,canvas.width, canvas.height);
-    ctx.fillStyle = "rgba(0,255,0,1)";
-    ctx.fillRect(0,0,canvas.width, canvas.height);
-    ctx.drawImage(canvas2,0,0);
-
+	if (test1CanvasActive){
+		//for entire level image showing at top of the screen
+		//copy from the offscreen level canvas to the on-screen canvas  
+		ctx.fillStyle = "rgba(0,255,0,1)";
+		ctx.fillRect(0,0,canvas.width, canvas.height);
+		ctx.drawImage(canvas2,0,0);
+	}
 	
 	//same thing for smaller second canvas to demo scrolling
 	var sc_h = screencanvas.height;
@@ -421,9 +396,7 @@ function updateDisplay(timestamp) {
 		screenCtx.drawImage(canvas2i, scroll_x,scroll_y, sc_w,sc_h,
                                         0,0, sc_w, sc_h);	//same for indestructible part (this is a temporary, inefficient solution!)
 	}
-	
-	//put a cursor image on screen - intend to use this as a "player object" to demonstrate scrolling level by moving object
-	
+
 	
 	var coldatapix= ~~cursor_x  + LEVEL_WIDTH*~~cursor_y;	//might fail if outside of bounds
 	//console.log(".. " + coldatapix + ".." + collisionData[coldatapix]);
@@ -434,8 +407,7 @@ function updateDisplay(timestamp) {
 	screenCtx.fillStyle = ( getCollisionPixelData(coldatapix)==1 ? "rgba(255,0,0,1)" : "rgba(255,255,255,1)");	//red or white
     screenCtx.fillRect(interp_cursor_x-scroll_x-3,interp_cursor_y-scroll_y-3,10, 10);
 	
-	//indicate on the whole level canvas at top of screen where scrolled to
-	//ctx.fillStyle = "rgba(255,0,255,1)";	//magenta
+	//ctx.fillStyle = "rgba(255,0,255,1)";	//magenta  //indicate on the whole level canvas at top of screen where scrolled to
     //ctx.fillRect(cursor_x-5,scroll-5,10, 10);
 	
 	//draw triangle for spaceship
@@ -631,13 +603,7 @@ function makeACircle(evt){
 
 	
 	myconsolelog("time to cut circle single bits: " + (getTimestamp() - startTime));
-	startTime = getTimestamp();
-	
-	
-//	if (testColCanvasActive == true){updateCollisionTestCanvas();}
-
-	myconsolelog("time to update canvas: " + (getTimestamp() - startTime));
-	
+	startTime = getTimestamp();	
 }
 
 function updateCollisionTestCanvas(){
@@ -781,7 +747,10 @@ function updateMechanics(){
 		if (keyThing.bombKey()){
 			gunCountdown = currentWeapon.fire_interval;
 			//console.log("dropped a bomb!");
-			new Bomb(cursor_x, cursor_y, cursor_vx + currentWeapon.muz_vel*sinGunAngle , cursor_vy - currentWeapon.muz_vel*cosGunAngle, 300);
+			new Bomb(cursor_x, cursor_y, 
+			cursor_vx + currentWeapon.muz_vel*sinGunAngle + currentWeapon.spray*gaussRand() , 
+			cursor_vy - currentWeapon.muz_vel*cosGunAngle + currentWeapon.spray*gaussRand() ,
+			300);
 		}
 	}
 	
@@ -796,7 +765,7 @@ function updateMechanics(){
 	
 }
 
-
+ 
 function makeRandomCircles(){
 	var circnum, circleX, circleY;
 	for (circnum=0;circnum<20;circnum++){
