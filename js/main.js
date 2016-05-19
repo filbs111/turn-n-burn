@@ -126,6 +126,7 @@ var bombidx =0;	//every time make a new bomb increase this. realistically probeb
 
 var currentWeapon = weapons[0];	//select default weapon
 
+var explosionRadioRadius=48; //?? should initialise to same value as selected radio button. messy but doesn't really matter
 
 //taken from fullscreen test project
 window.onresize = aspectFitCanvas;		//this works if not explicitly using HTML5. ?!!!!!!!
@@ -163,6 +164,20 @@ function aspectFitCanvas(evt) {
 
 window.onload = function() {
 
+	document.getElementById('explosion_radio').addEventListener('change', function(evt){
+		console.log("radio button changed");
+		console.log(JSON.stringify(evt));
+		
+		//radio button controls
+		var radii = document.getElementsByName('cutradius');
+		for(var i = 0; i < radii.length; i++){
+			if(radii[i].checked){
+				explosionRadioRadius= parseInt(radii[i].value);
+			}
+		}
+		
+	});
+
 	canvas = document.getElementById('canvas');
 	canvas.addEventListener("mousedown", respondToMouseclick);
     canvas.addEventListener("mouseup", respondToMouseup); 
@@ -197,6 +212,13 @@ window.onload = function() {
 	}
 	//bgImg.src = "img/desertdull.png";
 	bgImg.src = "img/test_card.png";
+	
+	//explosion image
+	explImg = new Image();
+	explImg.onload = function(){
+		console.log('explosion image loaded');
+	};
+	explImg.src='img/expl10.png';
 	
 	
 	//test? have a 2nd canvas to draw collision data into?
@@ -439,6 +461,11 @@ function updateDisplay(timestamp) {
 		//console.log("processing a bomb in draw loop");
 		bombs[b].draw();	//this should go in the draw bit
 	}
+	screenCtx.globalCompositeOperation = "screen";
+	for (var e in explosions){
+		explosions[e].draw();
+	}
+	screenCtx.globalCompositeOperation = "source-over"; //set back to default
 	
 	//for framerate
     //var timeDiff = timestamp - lastDrawTime;
@@ -480,15 +507,7 @@ function makeACircle(evt){
     //to time how long this takes
     var startTime = Date.now();
     
-    
-    //radio button controls
-	var radius = 100;
-    var radii = document.getElementsByName('cutradius');
-    for(var i = 0; i < radii.length; i++){
-        if(radii[i].checked){
-            radius = parseInt(radii[i].value);
-        }
-    }
+    var radius = explosionRadioRadius;
 	
     var diam = radius+radius;
 	var radsq = radius*radius;
@@ -562,10 +581,10 @@ function makeACircle(evt){
 	var cutblocka, cutblockb, cutblockx, cutblockxstart;
 	var cutblockmask;
 	
-	//console.log( "levelxblockstart = " + levelxblockstart + ", levelxblockend = " + levelxblockend);
-	
 	cutblockxstart = (startx+15 - (x- radius)) >>> 4; 
-	//console.log( "cutblockxstart = " + cutblockxstart + ", xoffs = " + xoffs);
+	
+	//console.log( "levelxblockstart = " + levelxblockstart + ", levelxblockend = " + levelxblockend +
+	//			"cutblockxstart = " + cutblockxstart + ", xoffs = " + xoffs);
 	
 	for (var jj = starty; jj<endy;jj++){	//loop over rows
 
@@ -589,8 +608,7 @@ function makeACircle(evt){
 			cutblockmask=0;
 			
 			//get roughly working ?
-			if (cutblockx>=0){
-								
+			if (cutblockx>=0){			
 				//cutblockmask|= dataViewSinglePix[cutblocka] >>> (16-xoffs)*2;			//this can be optimised by simply assigning to cutblockx
 																					//and by carrying over previous dataViewSinglePix[cutblockb] instead of looking up afresh
 																					//this also means can avoid this if.
@@ -600,16 +618,20 @@ function makeACircle(evt){
 				//	cutblockmask|= dataViewSinglePix[cutblocka] >>> (16-xoffs)*2;
 				//}
 				cutblockmask|= dataViewSinglePix[cutblocka] >>> (16-xoffs) >>> (16-xoffs); // but 16 twice does. go figure!
+				//if (jj == starty){console.log("path a");}
 			} else {
-				cutblockmask|= 0xffffffff >>> (16-xoffs)*2;	//affects left hand side.
+				cutblockmask|= 0xffffffff >>> (16-xoffs) >>> (16-xoffs);	//affects left hand side.
+				//if (jj == starty){console.log("path b");}
 			}
 				
 			if  (cutblockx +1 <(radius*2/16)) {		
 		
 								//can optimise by precalc radius*2/16 . alternatively, can avoid ifs entirely...
 				cutblockmask|= dataViewSinglePix[cutblockb] << xoffs*2;			//*2 since switched from 16 to 32 bits
+				//if (jj == starty){console.log("path c");}
 			} else {
 				cutblockmask|= 0xffffffff << xoffs*2;			//*2 since switched from 16 to 32 bits, and ffff -> ffffffff
+				//if (jj == starty){console.log("path d");}
 			}
 			
 			//console.log("blocka = " + cutblocka + ", cutblockmask = " + cutblockmask);
@@ -789,6 +811,10 @@ function updateMechanics(){
 		}
 	}
 	
+	for (var e in explosions){
+		explosions[e].iterate();
+	}
+	
 }
 
 
@@ -838,6 +864,8 @@ Bomb.prototype.destroy = function(){
 	this.alive = false;
 	makeACircle({offsetX:~~this.x, offsetY:~~this.y});
 	delete bombs[this.id];
+	//new Explosion(~~this.x, ~~this.y , 0,0, 100,0.5 );	//fixed size for now - seems about right for radius 48
+	new Explosion(~~this.x, ~~this.y , 0,0, 1.6*explosionRadioRadius,1 );
 }
 Bomb.prototype.draw = function(){
 	screenCtx.fillStyle="white";	
