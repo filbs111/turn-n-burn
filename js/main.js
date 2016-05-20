@@ -109,6 +109,7 @@ var bombidx =0;	//every time make a new bomb increase this. realistically probeb
 var currentWeapon = weapons[0];	//select default weapon
 
 var explosionDropdown, explosionDropdownRadius;
+var rocketDropdown, rocketColour;
 
 //taken from fullscreen test project
 window.onresize = aspectFitCanvas;		//this works if not explicitly using HTML5. ?!!!!!!!
@@ -145,12 +146,16 @@ function aspectFitCanvas(evt) {
 window.onload = function() {
 	var explosionDropdown = document.getElementById('explosion_dropdown');
 	explosionDropdown.addEventListener('change', function(evt){
-		console.log("explosion size set to : " + explosionDropdown.value);
 		explosionDropdownRadius = parseInt(explosionDropdown.value);
 	});
-	console.log("going to set initial size : " + explosionDropdown.value);
 	explosionDropdownRadius=parseInt(explosionDropdown.value);
 
+	var rocketDropdown = document.getElementById('rocket_dropdown');
+	rocketDropdown.addEventListener('change', function(evt){
+		rocketColour = rocketDropdown.value;
+	});
+	rocketColour = rocketDropdown.value;
+	
 	canvas = document.getElementById('canvas');
 	canvas.style.backgroundColor='rgba(0, 0, 0, 255)';
 
@@ -404,13 +409,14 @@ function updateDisplay(timestamp) {
     //ctx.fillRect(cursor_x-5,scroll-5,10, 10);
 	
 	//draw triangle for spaceship
-	screenCtx.strokeStyle = 'blue';
-	screenCtx.fillStyle = 'blue';
+	screenCtx.strokeStyle = rocketColour;
+	screenCtx.fillStyle = rocketColour;
 	screenCtx.beginPath();
 	var backx = interp_cursor_x-scroll_x - gunLength*0.4*sinGunAngle;
 	var backy = interp_cursor_y-scroll_y + gunLength*0.4*cosGunAngle;
 	screenCtx.moveTo(interp_cursor_x-scroll_x + gunLength*sinGunAngle , interp_cursor_y-scroll_y - gunLength*cosGunAngle);
 	screenCtx.lineTo(backx + gunLength*0.6*cosGunAngle , backy + gunLength*0.6*sinGunAngle);
+	screenCtx.lineTo(backx + gunLength*0.1*sinGunAngle, backy - gunLength*0.1*cosGunAngle);	//indented back
 	screenCtx.lineTo(backx - gunLength*0.6*cosGunAngle , backy - gunLength*0.6*sinGunAngle);
 	screenCtx.lineTo(interp_cursor_x-scroll_x + gunLength*sinGunAngle , interp_cursor_y-scroll_y - gunLength*cosGunAngle);
 	screenCtx.fill();
