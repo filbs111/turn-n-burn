@@ -17,15 +17,15 @@
 		<canvas id="screencanvas" width="512" height="512"></canvas>
         <div id="time_output">time to go here</div>
         
-        <form id="explosion_radio" action="">
-				<input type="radio" name="cutradius" value="8">8
-				<input type="radio" name="cutradius" value="16">16
-				<input type="radio" name="cutradius" value="24">24
-                <input type="radio" name="cutradius" value="48">48
-                <input type="radio" name="cutradius" value="96" checked = "checked">96
-                <input type="radio" name="cutradius" value="192">192
-                <input type="radio" name="cutradius" value="384">384
-        </form>
+        Explosion size: <select id="explosion_dropdown" action="">
+				<option value="8">8</option>
+				<option value="16">16</option>
+				<option value="24">24</option>
+                <option value="48">48</option>
+                <option value="96">96</option>
+                <option value="192">192</option>
+                <option value="384">384</option>
+        </select>
         
     </body>
 </html>

@@ -108,7 +108,7 @@ var bombidx =0;	//every time make a new bomb increase this. realistically probeb
 
 var currentWeapon = weapons[0];	//select default weapon
 
-var explosionRadioRadius=48; //?? should initialise to same value as selected radio button. messy but doesn't really matter
+var explosionDropdown, explosionDropdownRadius;
 
 //taken from fullscreen test project
 window.onresize = aspectFitCanvas;		//this works if not explicitly using HTML5. ?!!!!!!!
@@ -143,20 +143,13 @@ function aspectFitCanvas(evt) {
 
 
 window.onload = function() {
-
-	document.getElementById('explosion_radio').addEventListener('change', function(evt){
-		console.log("radio button changed");
-		console.log(JSON.stringify(evt));
-		
-		//radio button controls
-		var radii = document.getElementsByName('cutradius');
-		for(var i = 0; i < radii.length; i++){
-			if(radii[i].checked){
-				explosionRadioRadius= parseInt(radii[i].value);
-			}
-		}
-		
+	var explosionDropdown = document.getElementById('explosion_dropdown');
+	explosionDropdown.addEventListener('change', function(evt){
+		console.log("explosion size set to : " + explosionDropdown.value);
+		explosionDropdownRadius = parseInt(explosionDropdown.value);
 	});
+	console.log("going to set initial size : " + explosionDropdown.value);
+	explosionDropdownRadius=parseInt(explosionDropdown.value);
 
 	canvas = document.getElementById('canvas');
 	canvas.style.backgroundColor='rgba(0, 0, 0, 255)';
@@ -466,7 +459,7 @@ function makeACircle(evt){
     //to time how long this takes
     var startTime = Date.now();
     
-    var radius = explosionRadioRadius;
+    var radius = explosionDropdownRadius;
 	
     var diam = radius+radius;
 	var radsq = radius*radius;
@@ -877,7 +870,7 @@ Bomb.prototype.destroy = function(){
 	makeACircle({offsetX:~~this.x, offsetY:~~this.y});
 	delete bombs[this.id];
 	//new Explosion(~~this.x, ~~this.y , 0,0, 100,0.5 );	//fixed size for now - seems about right for radius 48
-	new Explosion(~~this.x, ~~this.y , 0,0, 1.6*explosionRadioRadius,1 );
+	new Explosion(~~this.x, ~~this.y , 0,0, 1.6*explosionDropdownRadius,1 );
 }
 Bomb.prototype.bounce = function(){
 	//reflection off normal http://www.3dkingdoms.com/weekly/weekly.php?a=2  Vnew = b * ( -2*(V dot N)*N + V )
