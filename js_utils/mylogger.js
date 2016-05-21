@@ -1,7 +1,7 @@
 "use strict";
 
 function myconsolelog(logstring){
-	if (myConsoleLoggingActive){
+	if (settings.logsEnabled){
 		console.log(logstring);
 	}
 }

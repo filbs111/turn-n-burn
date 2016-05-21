@@ -12,10 +12,6 @@ if (window.performance.now) {
     }
 }
 
-//CONFIG
-var test1CanvasActive=false;
-var testColCanvasActive=false;
-var myConsoleLoggingActive=false;
 var gunCountdown;
 
 //hard code these for now. 
@@ -80,7 +76,7 @@ var scroll_x, scroll_y; //move to global since also used by particle drawing. (s
 var lastDrawTime = 0;
 var framesRecently = 0;
 var mechanicsLeadTime = 0;
-var mechanicsTimestep = 10; //10ms so 100 fps mechanics 
+var mechanicsTimestep = settings.mechanicsTimestep; 
 
 //really should learn about ho to use objects to organise things! eg using something to make vectors
 var cursor_x=50;
@@ -359,7 +355,7 @@ function updateDisplay(timestamp) {
         mechanicsLeadTime += mechanicsTimestep;
     }
 	
-	if (test1CanvasActive){
+	if (settings.test1CanvasActive){
 		//for entire level image showing at top of the screen
 		//copy from the offscreen level canvas to the on-screen canvas  
 		ctx.fillStyle = "rgba(0,255,0,1)";
@@ -976,7 +972,7 @@ function afterLoadFunc(){
 	}
 		
 		
-	if (testColCanvasActive==true){
+	if (settings.testColCanvasActive){
 			//size and show test canvas for level collision data test
 			testcanvas = document.getElementById("coldetcanvas");
 			testcanvas.width = lw;
