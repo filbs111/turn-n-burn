@@ -336,9 +336,15 @@ function updateDisplay(timestamp) {
     lastDrawTime = timestamp;
     mechanicsLeadTime -= timeDiff; //this seeems not ideal - would prefer to get mechanics update out of updateDisplay, since guess this may be triggered close to time intend to actually draw it
                                     //(so want to do as little as pos here
+	var countedIterations = 0;
     while ( mechanicsLeadTime<0 ){
         updateMechanics();
         mechanicsLeadTime += mechanicsTimestep;
+		countedIterations++;
+		if (countedIterations > settings.maxTimestepsPerFrame){
+			console.log("performed maximum number of mechanics timesteps between frames (" + settings.maxTimestepsPerFrame + ")");
+			mechanicsLeadTime = 0;
+		}
     }
 	
 	if (settings.test1CanvasActive){
