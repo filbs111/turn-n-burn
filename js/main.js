@@ -1,25 +1,9 @@
 var gunCountdown;
 
-//hard code these for now. 
-//TODO set these at level load time. (eg call some function loadLevel...)
-//small level
-/*
-var LEVEL_WIDTH = 512;
-var LEVEL_HEIGHT = 1024; 
-var LEVEL_DESTR_SRC = "img/egypt_level1-t.png"; //-t is black changed to transparent
-var LEVEL_INDEST_SRC = "img/egypt_level1i-t.png";
-*/
-//big level (same as GF2 level 2* upscaled (21x63 x 32x32))
-var LEVEL_WIDTH = 672;
-var LEVEL_HEIGHT = 2016; 
-var LEVEL_DESTR_SRC = "img/egypt_level-big-t.png";
-var LEVEL_INDEST_SRC = "img/egypt_level-bigi-t.png";
-
+//this bit requires that settings object has been created and initialised IIRC
+var LEVEL_WIDTH = settings.LEVEL_WIDTH;
+var LEVEL_HEIGHT = settings.LEVEL_HEIGHT;
 var LEVEL_NUMPIX = LEVEL_WIDTH*LEVEL_HEIGHT;
-
-
-var levelImage, levelImageLoaded;	//TODO move to some object
-var levelIndestImage, levelIndestImageLoaded;
 
 var ctx;
 var canvas;
@@ -77,10 +61,6 @@ var gunLength = 10,
 	cosGunAngle,
 	sinGunAngle;
 
-//background image for parallax. 
-var bgImg;
-var bgImgLoaded = false;
-var expImgLoaded = false;
 
 var keyThing;	//used in conjnuction with js_utils/keys.js
 
@@ -141,41 +121,13 @@ window.onload = function() {
 	canvas = document.getElementById('canvas');
 	canvas.style.backgroundColor='rgba(0, 0, 0, 255)';
 
-	//load level image
-	levelImage = new Image();
-	levelImage.onload = function(){
-		console.log('level image loaded');
-		levelImageLoaded = true;
-		afterLoadFunc();
-	}
-	levelImage.src = LEVEL_DESTR_SRC; 
-
-	levelIndestImage = new Image();
-	levelIndestImage.onload = function(){
-		console.log("indestructible part of level loaded");
-		levelIndestImageLoaded = true;
-		afterLoadFunc();
-	}
-	levelIndestImage.src = LEVEL_INDEST_SRC;
-	
-	//background image
-	bgImg = new Image();
-	bgImg.onload = function(){
-		console.log('background image loaded');
-		bgImgLoaded = true;
-		afterLoadFunc();
-	}
-	//bgImg.src = "img/desertdull.png";
-	bgImg.src = "img/test_card.png";
-	
-	//explosion image
-	explImg = new Image();
-	explImg.onload = function(){
-		expImgLoaded = true;
-		console.log('explosion image loaded');
-		afterLoadFunc();
-	};
-	explImg.src='img/expl10.png';
+	assetManager.setOnloadFunc(afterLoadFunc);
+	assetManager.setAssetsToPreload({
+		LEVEL_DESTR: settings.LEVEL_DESTR_SRC,
+		LEVEL_INDEST: settings.LEVEL_INDEST_SRC,
+		BG: settings.LEVEL_BACKGROUND_SRC,
+		EXPL: settings.EXPLOSION_IMAGE_SRC
+	});
 	
 	
 	//test? have a 2nd canvas to draw collision data into?
@@ -372,7 +324,7 @@ function updateDisplay(timestamp) {
 	scroll_y = Math.min( Math.max( interp_cursor_y - (sc_h/2) , 0 ) , scroll_max_y ); // centre cursor, but don't scroll beyond end of level
 	
 		
-	screenCtx.drawImage(bgImg, (2048-sc_w)/32 + scroll_x/16, (2048-sc_h)/32 + scroll_y/16 , sc_w/8 ,sc_h/8,		//note this does not centre view - ends up on the left, for
+	screenCtx.drawImage(assetManager.asset.BG, (2048-sc_w)/32 + scroll_x/16, (2048-sc_h)/32 + scroll_y/16 , sc_w/8 ,sc_h/8,		//note this does not centre view - ends up on the left, for
 						0,0, sc_w,sc_h);																	//images taller than wide.
 		
 		
@@ -888,12 +840,8 @@ Bomb.prototype.draw = function(){
 }
 
 function afterLoadFunc(){
-	if (bgImgLoaded & levelImageLoaded & levelIndestImageLoaded & expImgLoaded){
-		console.log("all images loaded");
-	} else {
-		console.log("not all images loaded. returning");
-		return;
-	}
+	var levelImage = assetManager.asset.LEVEL_DESTR;
+    var levelIndestImage = assetManager.asset.LEVEL_INDEST;
 	
 	var circleSizes = [8,16,24,48,96,192,384];
 	circleSizes.forEach(function(cs){

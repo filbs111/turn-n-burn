@@ -10,7 +10,6 @@
 	//things like screenCtx should maybe be in some function where initialise this whole explosions thing
 	//possibly scrollx, scrolly should be set every frame too..
 	
-	var explImg;
 	var explosions = {};
 	var explosion_idx = 0;
 	
@@ -46,7 +45,7 @@
 		var xStart = xSquare * this.spriteSheetStep;
 		var yStart = ySquare * this.spriteSheetStep;
 		var scale = this.scale, x=this.x, y=this.y;
-		screenCtx.drawImage(explImg, xStart, yStart, this.spriteSheetStep, this.spriteSheetStep,
+		screenCtx.drawImage(assetManager.asset.EXPL, xStart, yStart, this.spriteSheetStep, this.spriteSheetStep,
                             x-scale -scroll_x ,y-scale -scroll_y,2*scale,2*scale );
 	}
 	
