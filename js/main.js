@@ -1,5 +1,6 @@
 var screencanvas, screencanvas_p2;
 var screensize_divisors={};
+var pairplay_xstretch;
 var player1object, p1screen;
 
 var gunCountdown;
@@ -76,6 +77,7 @@ window.onresize = aspectFitCanvas;		//this works if not explicitly using HTML5. 
 function setSplitscreenMode(mode){
 	screensize_divisors.x=1;
 	screensize_divisors.y=1;
+	pairplay_xstretch=1;	//1=off
 	switch(mode){
 		case "p1":
 			screencanvas.style.display = 'block';
@@ -96,6 +98,13 @@ function setSplitscreenMode(mode){
 			screencanvas_p2.style.display = 'block';
 			document.getElementById("right_table_cell").appendChild(screencanvas_p2);
 			screensize_divisors.x=2;
+			break;
+		case "pp":
+			screencanvas.style.display = 'block';
+			screencanvas_p2.style.display = 'block';
+			document.getElementById("bottom_table_cell").appendChild(screencanvas_p2);
+			screensize_divisors.y=2;
+			pairplay_xstretch=2;
 			break;
 	}
 	aspectFitCanvas();
@@ -119,14 +128,14 @@ function aspectFitCanvas(evt) {
         canvas.style.height = "" + ( ww * canvas.height / canvas.width ) + "px";
     }
 	
-	//repeat for 2nd canvas (temp)
+	//repeat for player 1 screen canvas
     //aspect fit
-    if ( ww * screencanvas.height > wh * screencanvas.width ) {
+    if ( ww * screencanvas.height > wh * pairplay_xstretch * screencanvas.width ) {
         screencanvas.style.height = "" + wh + "px";
-        screencanvas.style.width = "" + ( wh * screencanvas.width / screencanvas.height ) + "px";
+        screencanvas.style.width = "" + ( wh * pairplay_xstretch * screencanvas.width / screencanvas.height ) + "px";
     } else {
         screencanvas.style.width = "" + ww + "px";
-        screencanvas.style.height = "" + ( ww * screencanvas.height / screencanvas.width ) + "px";
+        screencanvas.style.height = "" + ( ww / pairplay_xstretch * screencanvas.height / screencanvas.width ) + "px";
     }
 	
 	//make 2nd canvas the same size
