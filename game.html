@@ -2,6 +2,7 @@
 <html>
     <head>
         <title>Destructible Terrain Test Project</title>
+		<script src="js_utils/fullscreen.js"></script>
 		<script src="js_utils/settings.js"></script>
 		<script src="js_utils/mylogger.js"></script>
 		<script src="js_utils/preloader.js"></script>
@@ -10,6 +11,7 @@
 		<script src="js_utils/explosions.js"></script>
 		<script src="js_utils/gaussrand.js"></script>
 		<script src="js_utils/hirestimer.js"></script>
+		<script src="js/screen.js"></script>
 		<script src="js/main.js"></script>
         <link rel="stylesheet" href="css/style.css" />
     </head>
@@ -17,7 +19,17 @@
     <body>
 		<canvas id="canvas" width="1024" height="768"></canvas>
 		<canvas id="coldetcanvas" width="1024" height="768"></canvas>
-		<canvas id="screencanvas" width="512" height="512"></canvas>
+		
+		<table id=splitscreen align="center">
+			<tr>
+				<td id="topleft_table_cell"><canvas id="screencanvas"></canvas></td>
+				<td id="right_table_cell"><canvas id="screencanvas_p2"></canvas></td>
+			</tr>
+			<tr>
+				<td id="bottom_table_cell"></td>
+			</tr>
+		</table>
+		
         <div id="time_output">time to go here</div>
         
 		<div style='float:left'>
@@ -29,7 +41,7 @@
                 <option value="96">96</option>
                 <option value="192">192</option>
                 <option value="384">384</option>
-        </select>
+			</select>
 		</div>
 		<div style='float:left'>
 			&nbsp
@@ -41,7 +53,17 @@
 				<option value="#f00">DUKE</option>
 				<option value="#22f">GARY</option>
 				<option value="#fff">HERA</option>
+			</select>
 		</div>
-        
+		<div style='float:left'>
+			&nbsp
+			split screen type:<select id="splitscreen_dropdown">
+				<option value="p1">&#11036; player 1</option>
+				<option value="p2">&#11035; player 2</option>
+				<option value="tb">&#11027;  top/bottom split screen</option>
+				<option value="ss">&#9704; side-by-side split screen</option>
+			</select>
+      	</div>
+		<button id=fullscreen onclick="launchFullscreen()">GO FULLSCREEN</button>
     </body>
 </html>

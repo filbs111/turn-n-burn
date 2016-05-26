@@ -1,3 +1,7 @@
+var screencanvas, screencanvas_p2;
+var screensize_divisors={};
+var player1object, p1screen;
+
 var gunCountdown;
 
 //this bit requires that settings object has been created and initialised IIRC
@@ -49,18 +53,10 @@ var mechanicsLeadTime = 0;
 var mechanicsTimestep = settings.mechanicsTimestep; 
 
 //really should learn about ho to use objects to organise things! eg using something to make vectors
-var cursor_x=50;
-var cursor_y=48;
-var cursor_vx=0;
-var cursor_vy=0;
-var interp_cursor_x, interp_cursor_x, interpFactor;
 
-var gunLength = 10,
-	gunAngle = 45,
-	gunAngleRadians,
-	cosGunAngle,
-	sinGunAngle;
+var interpFactor;
 
+var gunLength = 10;
 
 var keyThing;	//used in conjnuction with js_utils/keys.js
 
@@ -76,12 +72,42 @@ var rocketDropdown, rocketColour;
 //taken from fullscreen test project
 window.onresize = aspectFitCanvas;		//this works if not explicitly using HTML5. ?!!!!!!!
 
-   
+  
+function setSplitscreenMode(mode){
+	screensize_divisors.x=1;
+	screensize_divisors.y=1;
+	switch(mode){
+		case "p1":
+			screencanvas.style.display = 'block';
+			screencanvas_p2.style.display = 'none';
+			break;
+		case "p2":
+			screencanvas.style.display = 'none';
+			screencanvas_p2.style.display = 'block';
+			break;
+		case "tb":
+			screencanvas.style.display = 'block';
+			screencanvas_p2.style.display = 'block';
+			document.getElementById("bottom_table_cell").appendChild(screencanvas_p2);
+			screensize_divisors.y=2;
+			break;
+		case "ss":
+			screencanvas.style.display = 'block';
+			screencanvas_p2.style.display = 'block';
+			document.getElementById("right_table_cell").appendChild(screencanvas_p2);
+			screensize_divisors.x=2;
+			break;
+	}
+	aspectFitCanvas();
+} 
+ 
 function aspectFitCanvas(evt) {
 
     var ww = window.innerWidth -2;
     var wh = window.innerHeight -2;
-    
+    ww/=screensize_divisors.x;
+	wh/=screensize_divisors.y;
+
 	//console.log("aspect fitting canvas... ww = " + ww + ", wh = " + wh);
 
 	//fails if put <!DOCTYPE html> in the html doc and assign numbers to style.height etc!! wants strings ending in "px" apparently 
@@ -102,10 +128,34 @@ function aspectFitCanvas(evt) {
         screencanvas.style.width = "" + ww + "px";
         screencanvas.style.height = "" + ( ww * screencanvas.height / screencanvas.width ) + "px";
     }
+	
+	//make 2nd canvas the same size
+	screencanvas_p2.style.width = screencanvas.style.width;
+	screencanvas_p2.style.height = screencanvas.style.height;
 }
 
 
 window.onload = function() {
+	//test? have a 2nd canvas to draw collision data into?
+
+	//temp - make other canvas visible
+	screencanvas = document.getElementById('screencanvas');
+	
+	//override width/height? (can remove these settings from html doc)
+	screencanvas.width = 672;
+	screencanvas.height = 672;	//504; //4:3 aspect"
+	screencanvas.style.display = 'block';
+	screenCtx = screencanvas.getContext('2d');
+	
+	//second canvas for player 2 - hidden by default - will display or hide when switching splitscreen modes.
+	screencanvas_p2 = document.getElementById('screencanvas_p2');
+	screencanvas_p2.width = 672;
+	screencanvas_p2.height = 672;
+	
+	canvas = document.getElementById('canvas');
+	canvas.style.backgroundColor='rgba(0, 0, 0, 255)';
+	
+	
 	var explosionDropdown = document.getElementById('explosion_dropdown');
 	explosionDropdown.addEventListener('change', function(evt){
 		explosionDropdownRadius = parseInt(explosionDropdown.value);
@@ -118,8 +168,12 @@ window.onload = function() {
 	});
 	rocketColour = rocketDropdown.value;
 	
-	canvas = document.getElementById('canvas');
-	canvas.style.backgroundColor='rgba(0, 0, 0, 255)';
+	var splitscreenDropdown = document.getElementById('splitscreen_dropdown');
+	splitscreenDropdown.addEventListener('change', function(evt){
+		setSplitscreenMode(splitscreenDropdown.value);
+	});
+	setSplitscreenMode(splitscreenDropdown.value);
+	
 
 	assetManager.setOnloadFunc(afterLoadFunc);
 	assetManager.setAssetsToPreload({
@@ -130,33 +184,14 @@ window.onload = function() {
 	});
 	
 	
-	//test? have a 2nd canvas to draw collision data into?
-
-	
-	//temp - make other canvas visible
-	var screencanvas = document.getElementById('screencanvas');
-	
-	//override width/height? (can remove these settings from html doc)
-	screencanvas.width = 672;
-	screencanvas.height = 504;	//4:3 aspect"
-	
-	//larger than the level... - don't handle this yet!
-	//screencanvas.width = 1024;
-	//screencanvas.height = 1024;
-	
-	
-	screencanvas.style.display = 'block';
-	screenCtx = screencanvas.getContext('2d');
-	
-	
 	keyThing = myKeysStatesThing();	//thing to track key states
 	keyThing.setKeydownCallback(32,function(){			//32=space key
-		makeACircle({offsetX:~~cursor_x, offsetY:~~cursor_y});
+		makeACircle({offsetX:~~player1object.x, offsetY:~~player1object.y});
 		myconsolelog("made a circle since space depressed");
 	});
 	keyThing.setKeydownCallback(17,function(){			//17 = ctrl
 		//console.log("dropped a bomb!");
-		//new Bomb(cursor_x, cursor_y, cursor_vx, cursor_vy);
+		//new Bomb(player1object.x, player1objecty, player1object.vx, player1object.vy);
 	});
 	keyThing.setKeydownCallback(97,function(){			//97 = numpad 1
 		console.log("fired multidirectional shot");
@@ -166,9 +201,9 @@ window.onload = function() {
 		var angle = 0;
 		var vx,vy;
 		for (var ii=0;ii<numdirections;ii++){
-			vx = cursor_vx + speed*Math.sin(angle);
-			vy = cursor_vy + speed*Math.cos(angle);
-			new Bomb(cursor_x, cursor_y, vx, vy, 300 );
+			vx = player1object.vx + speed*Math.sin(angle);
+			vy = player1object.vy + speed*Math.cos(angle);
+			new Bomb(player1object.x, player1object.y, vx, vy, 300 );
 			angle+=anglestep;
 		}
 	});
@@ -179,9 +214,9 @@ window.onload = function() {
 		var vx,vy;
 		//todo precalculate random numbers and cycle them
 		for (var ii=0;ii<numshots;ii++){
-			vx = cursor_vx + speed*gaussRand();
-			vy = cursor_vy + speed*gaussRand();
-			new Bomb(cursor_x, cursor_y, vx, vy, 300);
+			vx = player1object.vx + speed*gaussRand();
+			vy = player1object.vy + speed*gaussRand();
+			new Bomb(player1object.x, player1object.y, vx, vy, 300);
 		}
 	});
 	
@@ -307,91 +342,25 @@ function updateDisplay(timestamp) {
 		ctx.drawImage(canvas2,0,0);
 	}
 	
-	//same thing for smaller second canvas to demo scrolling
+	//drawing to player screens
+	//parts shared between views first (TODO precalculate these)
 	var sc_h = screencanvas.height;
 	var sc_w = screencanvas.width;
-	
-		
-	//var scroll = (timestamp/4) % (1024-sc_h);    //height of level - heigh of screen
 	var scroll_max_x = canvas2.width - sc_w;
 	var scroll_max_y = canvas2.height - sc_h;
 	
     interpFactor = mechanicsLeadTime / mechanicsTimestep; 	//interpolated position 
-	interp_cursor_x = cursor_x - cursor_vx*interpFactor;
-	interp_cursor_y = cursor_y - cursor_vy*interpFactor;
-	
-	scroll_x = Math.min( Math.max( interp_cursor_x - (sc_w/2) , 0 ) , scroll_max_x );
-	scroll_y = Math.min( Math.max( interp_cursor_y - (sc_h/2) , 0 ) , scroll_max_y ); // centre cursor, but don't scroll beyond end of level
-	
-		
-	screenCtx.drawImage(assetManager.asset.BG, (2048-sc_w)/32 + scroll_x/16, (2048-sc_h)/32 + scroll_y/16 , sc_w/8 ,sc_h/8,		//note this does not centre view - ends up on the left, for
-						0,0, sc_w,sc_h);																	//images taller than wide.
-		
-		
-	screenCtx.drawImage(canvas2, scroll_x,scroll_y, sc_w,sc_h,
-                                        0,0, sc_w, sc_h);	//copy from relevant part of destructible canvas, given scroll value to on-screen canvas 
-	if (canvas2i){
-		screenCtx.drawImage(canvas2i, scroll_x,scroll_y, sc_w,sc_h,
-                                        0,0, sc_w, sc_h);	//same for indestructible part (this is a temporary, inefficient solution!)
-	}
 
-	
-	var coldatapix= ~~cursor_x  + LEVEL_WIDTH*~~cursor_y;	//might fail if outside of bounds
-	//console.log(".. " + coldatapix + ".." + collisionData[coldatapix]);
-
-	screenCtx.fillStyle = ( collisionData8View[coldatapix]==1 ? "rgba(255,0,0,1)" : "rgba(255,255,255,1)");	//red or white
-    screenCtx.fillRect(interp_cursor_x-scroll_x-5,interp_cursor_y-scroll_y-5,10, 10);
-	
-	screenCtx.fillStyle = ( getCollisionPixelData(coldatapix)==1 ? "rgba(255,0,0,1)" : "rgba(255,255,255,1)");	//red or white
-    screenCtx.fillRect(interp_cursor_x-scroll_x-3,interp_cursor_y-scroll_y-3,10, 10);
-	
-	//ctx.fillStyle = "rgba(255,0,255,1)";	//magenta  //indicate on the whole level canvas at top of screen where scrolled to
-    //ctx.fillRect(cursor_x-5,scroll-5,10, 10);
-	
-	//draw triangle for spaceship
-	screenCtx.strokeStyle = rocketColour;
-	screenCtx.fillStyle = rocketColour;
-	screenCtx.beginPath();
-	var backx = interp_cursor_x-scroll_x - gunLength*0.4*sinGunAngle;
-	var backy = interp_cursor_y-scroll_y + gunLength*0.4*cosGunAngle;
-	screenCtx.moveTo(interp_cursor_x-scroll_x + gunLength*sinGunAngle , interp_cursor_y-scroll_y - gunLength*cosGunAngle);
-	screenCtx.lineTo(backx + gunLength*0.6*cosGunAngle , backy + gunLength*0.6*sinGunAngle);
-	screenCtx.lineTo(backx + gunLength*0.1*sinGunAngle, backy - gunLength*0.1*cosGunAngle);	//indented back
-	screenCtx.lineTo(backx - gunLength*0.6*cosGunAngle , backy - gunLength*0.6*sinGunAngle);
-	screenCtx.lineTo(interp_cursor_x-scroll_x + gunLength*sinGunAngle , interp_cursor_y-scroll_y - gunLength*cosGunAngle);
-	screenCtx.fill();
-	screenCtx.stroke();
-	
-	//draw some line to show normal vector for where spaceship is (to test)
-	var sshipNormal = getNormal(~~cursor_x, ~~cursor_y);
-	
-	//override for testing drawing
-	//sshipNormal= {x:1, y:1};
-	
-	screenCtx.strokeStyle = 'red';
-	screenCtx.beginPath();
-	screenCtx.moveTo(cursor_x -scroll_x , cursor_y -scroll_y );
-	screenCtx.lineTo(cursor_x + sshipNormal.x*100 -scroll_x , cursor_y + sshipNormal.y*100 -scroll_y );
-	screenCtx.stroke();
-	
-	for (var b in bombs){
-		//console.log("processing a bomb in draw loop");
-		bombs[b].draw();	//this should go in the draw bit
-	}
-	screenCtx.globalCompositeOperation = "screen";
-	for (var e in explosions){
-		explosions[e].draw();
-	}
-	screenCtx.globalCompositeOperation = "source-over"; //set back to default
+	//draw player 1's canvas as normal, but use variables such that can extend to 2 players
+	p1screen.render();
+	p2screen.render();
 	
 	//for framerate
     //var timeDiff = timestamp - lastDrawTime;
     //lastDrawTime = timestamp;
     var multiplier = Math.pow(0.999, timeDiff);
     framesRecently*= multiplier;
-    framesRecently++;
-    screenCtx.strokeText( framesRecently.toFixed(1) , 50,50);
-	
+    framesRecently++;	
 }
 
 function makeACircle(evt){
@@ -645,38 +614,38 @@ function updateCollisionTestCanvas(){
 function updateMechanics(){
 	
 	//movement.
-	cursor_vx += 0.2 * (keyThing.rightKey() - keyThing.leftKey());
-	cursor_vy += 0.2 * (keyThing.downKey() - keyThing.upKey());
-	cursor_vx*=0.99;
-	cursor_vy*=0.99;
-	cursor_vy+=0.025;	//same gravity as bombs	
-	cursor_x+=cursor_vx;
-	cursor_y+=cursor_vy;
+	player1object.vx += 0.2 * (keyThing.rightKey() - keyThing.leftKey());
+	player1object.vy += 0.2 * (keyThing.downKey() - keyThing.upKey());
+	player1object.vx*=0.99;
+	player1object.vy*=0.99;
+	player1object.vy+=0.025;	//same gravity as bombs	
+	player1object.x+=player1object.vx;
+	player1object.y+=player1object.vy;
 
 	
 	//don't go outside level
 	var x_min =5;
 	var y_min =5;
-	if (cursor_x<x_min){cursor_x=x_min;cursor_vx=0;}
-	if (cursor_y<y_min){cursor_y=y_min;cursor_vy=0;}
+	if (player1object.x<x_min){player1object.x=x_min;player1object.vx=0;}
+	if (player1object.y<y_min){player1object.y=y_min;player1object.vy=0;}
 	var x_max = canvas2.width-5;
 	var y_max = canvas2.height-5;
-	if (cursor_x>x_max){cursor_x=x_max;cursor_vx=0;}
-	if (cursor_y>y_max){cursor_y=y_max;cursor_vy=0;}
+	if (player1object.x>x_max){player1object.x=x_max;player1object.vx=0;}
+	if (player1object.y>y_max){player1object.y=y_max;player1object.vy=0;}
 	
-	if(keyThing.spaceKey()){makeACircle({offsetX:~~cursor_x, offsetY:~~cursor_y});}
+	if(keyThing.spaceKey()){makeACircle({offsetX:~~player1object.x, offsetY:~~player1object.y});}
 	if(keyThing.returnKey()){makeRandomCircles();}
 	
 	
 	//rotate spaceship/ gun angle. no acceleration for now
-	gunAngle += 3.0 * ( keyThing.keystate(190) - keyThing.keystate(188) );	// <, > keys  
-	gunAngleRadians = Math.PI * gunAngle / 180;
-	cosGunAngle = Math.cos(gunAngleRadians);
-	sinGunAngle = Math.sin(gunAngleRadians);
+	player1object.ang += 3.0 * ( keyThing.keystate(190) - keyThing.keystate(188) );	// <, > keys  
+	var angRadians = Math.PI * player1object.ang / 180;
+	player1object.cosAng = Math.cos(angRadians);
+	player1object.sinAng = Math.sin(angRadians);
 	//thrust
 	if(keyThing.keystate(191)){	// "/" key
-		cursor_vx += 0.06*sinGunAngle;
-		cursor_vy -= 0.06*cosGunAngle;
+		player1object.vx += 0.06*player1object.sinAng;
+		player1object.vy -= 0.06*player1object.cosAng;
 	}
 	
 	//dropping bombs
@@ -686,9 +655,9 @@ function updateMechanics(){
 		if (keyThing.bombKey()){
 			gunCountdown = currentWeapon.fire_interval;
 			//console.log("dropped a bomb!");
-			new Bomb(cursor_x, cursor_y, 
-			cursor_vx + currentWeapon.muz_vel*sinGunAngle + currentWeapon.spray*gaussRand() , 
-			cursor_vy - currentWeapon.muz_vel*cosGunAngle + currentWeapon.spray*gaussRand() ,
+			new Bomb(player1object.x, player1object.y, 
+			player1object.vx + currentWeapon.muz_vel*player1object.sinAng + currentWeapon.spray*gaussRand() , 
+			player1object.vy - currentWeapon.muz_vel*player1object.cosAng + currentWeapon.spray*gaussRand() ,
 			300);
 		}
 	}
@@ -864,6 +833,31 @@ function afterLoadFunc(){
     canvas2.height = lh;
     ctx2 = canvas2.getContext("2d");
     ctx2.drawImage(levelImage,0,0);
+	
+	
+	//set up a renderer for the window.
+	//temporary = "hard code" a player object (later should have some constructor..)
+	player1object = {
+		x:50,
+		y:48,
+		vx:0,
+		vy:0,
+		ang:0,
+		cosAng:1,
+		sinAng:0
+	}
+	p1screen = new Screen(screencanvas, player1object);
+
+	player2object = {
+		x:200,
+		y:100,
+		vx:0,
+		vy:0,
+		ang:0,
+		cosAng:1,
+		sinAng:0
+	}
+	p2screen = new Screen(screencanvas_p2, player2object);
 
 		
 	//populate collision data array from canvas.
