@@ -896,7 +896,7 @@ function afterLoadFunc(){
     ctx.font = "30px Arial";
 
 	aspectFitCanvas();
-	canvas.style.display = 'block';
+	if (settings.test1CanvasActive){canvas.style.display = 'block';}
 	
 
 	//indestructuble part of level.
