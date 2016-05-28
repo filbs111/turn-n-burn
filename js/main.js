@@ -75,6 +75,8 @@ window.onresize = aspectFitCanvas;		//this works if not explicitly using HTML5. 
 
   
 function setSplitscreenMode(mode){
+	Screen.joiningActive = ( mode == 'join' ) ? true : false;
+	
 	screensize_divisors.x=1;
 	screensize_divisors.y=1;
 	pairplay_xstretch=1;	//1=off
@@ -88,6 +90,7 @@ function setSplitscreenMode(mode){
 			screencanvas_p2.style.display = 'block';
 			break;
 		case "tb":
+		case "join":
 			screencanvas.style.display = 'block';
 			screencanvas_p2.style.display = 'block';
 			document.getElementById("bottom_table_cell").appendChild(screencanvas_p2);
@@ -360,7 +363,6 @@ function updateDisplay(timestamp) {
 	
     interpFactor = mechanicsLeadTime / mechanicsTimestep; 	//interpolated position 
 
-	//draw player 1's canvas as normal, but use variables such that can extend to 2 players
 	p1screen.render();
 	p2screen.render();
 	
@@ -847,6 +849,7 @@ function afterLoadFunc(){
 	//set up a renderer for the window.
 	//temporary = "hard code" a player object (later should have some constructor..)
 	player1object = {
+		id:0,
 		x:50,
 		y:48,
 		vx:0,
@@ -855,18 +858,19 @@ function afterLoadFunc(){
 		cosAng:1,
 		sinAng:0
 	}
-	p1screen = new Screen(screencanvas, player1object);
-
 	player2object = {
-		x:200,
-		y:100,
+		id:1,
+		x:100,
+		y:980,
 		vx:0,
 		vy:0,
 		ang:0,
 		cosAng:1,
 		sinAng:0
 	}
-	p2screen = new Screen(screencanvas_p2, player2object);
+	
+	p1screen = new Screen(screencanvas, player1object, player2object);
+	p2screen = new Screen(screencanvas_p2, player2object, player1object);
 
 		
 	//populate collision data array from canvas.
