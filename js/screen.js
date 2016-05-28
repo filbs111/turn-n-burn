@@ -60,19 +60,22 @@ Screen.prototype.render = function(){
 			var total = yBottom + yTop;
 			yTop = ( total - sc_h ) /2;
 			yBottom = ( total + sc_h) /2;
-		} else {
-			//yTop -= sc_h/2;
-			//yBottom += sc_h;
-		}
+		} 
 		
 		scrl_y = (this.is2ndScreen == false) ? yTop : yBottom;	
 	}
 	
-	ctx.drawImage(assetManager.asset.BG, (2048-sc_w)/32 + scrl_x/16, (2048-sc_h)/32 + scrl_y/16 , 
+	var bgShift =0;
+	if (Screen.joiningActive){
+		bgShift = (this.is2ndScreen == false) ? -21:21;	//672/16
+	}
+	
+	ctx.drawImage(assetManager.asset.BG, (2048-sc_w)/32 + scrl_x/16, (2048-sc_h)/32 + scrl_y/16 +bgShift, 
 		sc_w/8 ,sc_h/8,
 		0,0, sc_w,sc_h);
 		//note this does not centre view - ends up on the left, for	images taller than wide.
-		
+	
+	
 	ctx.drawImage(canvas2, scrl_x,scrl_y, sc_w,sc_h,
                                         0,0, sc_w, sc_h);	//copy from relevant part of destructible canvas, given scroll value to on-screen canvas 
 	if (canvas2i){
