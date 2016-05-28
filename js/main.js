@@ -75,7 +75,9 @@ window.onresize = aspectFitCanvas;		//this works if not explicitly using HTML5. 
 
   
 function setSplitscreenMode(mode){
-	Screen.joiningActive = ( mode == 'join' ) ? true : false;
+	Screen.joiningActive = false;
+	Screen.verticalsplitActive = false;
+	Screen.horizontalsplitActive = false;
 	
 	screensize_divisors.x=1;
 	screensize_divisors.y=1;
@@ -89,14 +91,17 @@ function setSplitscreenMode(mode){
 			screencanvas.style.display = 'none';
 			screencanvas_p2.style.display = 'block';
 			break;
-		case "tb":
 		case "join":
+			Screen.joiningActive = true;
+		case "tb":
+			Screen.verticalsplitActive = true;
 			screencanvas.style.display = 'block';
 			screencanvas_p2.style.display = 'block';
 			document.getElementById("bottom_table_cell").appendChild(screencanvas_p2);
 			screensize_divisors.y=2;
 			break;
 		case "ss":
+			Screen.horizontalsplitActive = true;
 			screencanvas.style.display = 'block';
 			screencanvas_p2.style.display = 'block';
 			document.getElementById("right_table_cell").appendChild(screencanvas_p2);
@@ -115,8 +120,8 @@ function setSplitscreenMode(mode){
  
 function aspectFitCanvas(evt) {
 
-    var ww = window.innerWidth -2;
-    var wh = window.innerHeight -2;
+    var ww = window.innerWidth;
+    var wh = window.innerHeight;
     ww/=screensize_divisors.x;
 	wh/=screensize_divisors.y;
 

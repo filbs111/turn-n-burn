@@ -13,6 +13,8 @@ function Screen(canvasElement, target, othertarget){
 	this.is2ndScreen = ( target.id == 1 ) ? true:false;
 }
 Screen.joiningActive = false;	//class variable
+Screen.verticalsplitActive = false;
+Screen.horizontalsplitActive = false;
 Screen.prototype.setTarget = function(target){
 	this.target = target;
 }
@@ -26,18 +28,15 @@ Screen.prototype.render = function(){
 	var othertarget = this.othertarget;
 	
 	var ctx = this.context;
+	
+	var joiningApart = 1;
+	
 	//this should be moved out of screen.js since should only calculate once per player per frame.
 	target.interp_x = target.x - target.vx*interpFactor;
 	target.interp_y = target.y - target.vy*interpFactor;
 	othertarget.interp_x = othertarget.x - othertarget.vx*interpFactor;
 	othertarget.interp_y = othertarget.y - othertarget.vy*interpFactor;
 	
-	
-	//TEST
-	//if (Screen.joiningActive){
-	//	console.log("joining was set active");
-	//	Screen.joiningActive = false;
-	//}
 	
 	//note using scrl_x,y instead of scroll since still wish to set global variable for bomb, explosion drawing for now.
 	var scrl_x = Math.min( Math.max( target.interp_x - (sc_w/2) , 0 ) , scroll_max_x );
@@ -56,13 +55,16 @@ Screen.prototype.render = function(){
 		yBottom = Math.min( Math.max( yBottom , sc_h ) , scroll_max_y );
 		
 		//now apply logic to separate screens
-		if (yBottom - yTop < sc_h){
+		if (yBottom - yTop <= sc_h){
 			var total = yBottom + yTop;
 			yTop = ( total - sc_h ) /2;
 			yBottom = ( total + sc_h) /2;
+			
+			//joiningCrossover = Math.max( (sc_h - (yBottom - yTop) * 0.02) , 1);	//goes from 0 when not/just touching, to max 1 when crossed over and have to be pushed apart. pos
+			joiningApart = 0;
 		} 
 		
-		scrl_y = (this.is2ndScreen == false) ? yTop : yBottom;	
+		scrl_y = (this.is2ndScreen == false) ? yTop : yBottom;
 	}
 	
 	var bgShift =0;
@@ -137,5 +139,24 @@ Screen.prototype.render = function(){
 	}
 	ctx.globalCompositeOperation = "source-over"; //set back to default
 	
-	ctx.strokeText( framesRecently.toFixed(1) , 50,50);
+	ctx.strokeStyle = 'rgba(0,0,0,'+ joiningApart +')';
+	//draw lines to split views
+	if (Screen.verticalsplitActive){
+		var liney = (this.is2ndScreen) ? 0: this.canvasElement.height;
+		ctx.beginPath();
+		ctx.moveTo(0,liney);
+		ctx.lineTo(this.canvasElement.width, liney);
+		ctx.stroke();
+	}
+	if (Screen.horizontalsplitActive){
+		var linex = (this.is2ndScreen) ? 0: this.canvasElement.width;
+		ctx.beginPath();
+		ctx.moveTo(linex, 0);
+		ctx.lineTo(linex, this.canvasElement.height);
+		ctx.stroke();
+	}
+	if (!this.is2ndScreen){
+		ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+		ctx.strokeText( framesRecently.toFixed(1) , 50,50);
+	}
 }
