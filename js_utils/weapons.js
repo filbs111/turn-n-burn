@@ -38,6 +38,13 @@ var weapons = (function generateWeapons(){
 		'fire_interval': 4,
 		'shot_type_index': 1
 	}));
+	weaponsArr.push(new Weapon({
+		'name': 'rapid fire gun',
+		'shot_type': '1',
+		'muz_vel': 1,
+		'fire_interval': 1,
+		'shot_type_index': 1
+	}));
 	
 	//TODO have something that can load in some JSON
 	//json can be constructed from some spreadsheet

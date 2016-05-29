@@ -246,7 +246,7 @@ window.onload = function() {
 			console.log("pressed a key. weapon name = " + currentWeapon.name );
 		});
 	}
-	for (var ii=0;ii<4;ii++){
+	for (var ii=0;ii<5;ii++){
 		thatweapon = weapons[ii];
 		console.log("hopefully adding a callback for a weapon named " + thatweapon['name']);
 		addNumberClickHandler(ii,48+ii);
@@ -341,10 +341,14 @@ function updateDisplay(timestamp) {
     lastDrawTime = timestamp;
     mechanicsLeadTime -= timeDiff; //this seeems not ideal - would prefer to get mechanics update out of updateDisplay, since guess this may be triggered close to time intend to actually draw it
                                     //(so want to do as little as pos here
+									
 	var countedIterations = 0;
     while ( mechanicsLeadTime<0 ){
-        updateMechanics();
-        mechanicsLeadTime += mechanicsTimestep;
+		
+		var virtualTime = timestamp + mechanicsLeadTime;	//the time at which want to play sounds. later may wish to extend to taking input. 
+		
+        updateMechanics(virtualTime);
+        mechanicsLeadTime += mechanicsTimestep; 
 		countedIterations++;
 		if (countedIterations > settings.maxTimestepsPerFrame){
 			console.log("performed maximum number of mechanics timesteps between frames (" + settings.maxTimestepsPerFrame + ")");
@@ -628,7 +632,7 @@ function updateCollisionTestCanvas(){
 	
 }
 
-function updateMechanics(){
+function updateMechanics(virtualTime){
 	
 	//movement.
 	player1object.vx += 0.2 * (keyThing.rightKey() - keyThing.leftKey());
@@ -684,7 +688,21 @@ function updateMechanics(){
 			player1object.vx + currentWeapon.muz_vel*player1object.sinAng + currentWeapon.spray*gaussRand() , 
 			player1object.vy - currentWeapon.muz_vel*player1object.cosAng + currentWeapon.spray*gaussRand() ,
 			300);
-			myAudioPlayer.playGunSound();
+			myAudioPlayer.playGunSound(0);
+			//myAudioPlayer.playGunSound((40+mechanicsLeadTime)/1000);
+			
+			var timeDelay = virtualTime - getTimestamp();
+			//console.log ("time delay : " + timeDelay);
+			
+			myAudioPlayer.playGunSound( (40+timeDelay)/1000 ) ;	//timeDelay is typically -ve. if <-40, param passed becomes
+			    //	<0, and web audio api will try to play before current time, resulting in it playing it now.
+				//improvements?
+				//have a sound with nothing at start, and set time instead of delaying, or
+				//for long delays, use setTimeout to get closer to desired time then play
+			
+			//myAudioPlayer.playGunSound(500);	
+			//myAudioPlayer.playGunSound(0.5);	//delay is in seconds!!
+
 		}
 	}
 	
@@ -747,7 +765,7 @@ function getNormal(x,y){
 	//normalise
 	var mag = Math.sqrt(normX*normX + normY*normY);
 	if (mag ==0){return {x:0,y:0};};
-	console.log("xnormal : " + normX + " , ynormal : " + normY );
+	//console.log("xnormal : " + normX + " , ynormal : " + normY );
 	return {x:normX/mag,y:normY/mag};
 	
 }
@@ -805,7 +823,7 @@ Bomb.prototype.iterate = function(){
 	
 }
 Bomb.prototype.destroy = function(){
-	console.log("detonating bomb . x = " + ~~this.x + ", y = " + ~~this.y );
+	//console.log("detonating bomb . x = " + ~~this.x + ", y = " + ~~this.y );
 
 	this.alive = false;
 	makeACircle({offsetX:~~this.x, offsetY:~~this.y});

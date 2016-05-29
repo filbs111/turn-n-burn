@@ -37,19 +37,18 @@ var MySound = (function(){
 		
 		//static variables
 		mySound.usingAudioAPI= true; 
-		mySound.prototype.play = function(){
-			console.log("will play sound, using web audio API, from: " + this.soundAddress);
+		mySound.prototype.play = function(delay){
+			//console.log("will play sound, using web audio API, from: " + this.soundAddress + ", delay: " + delay);
 			
 			if (!this.soundbuffer){
 				console.log("not loaded yet. returning");
 				return;
 			}
-			console.log("will play sound");
 
 			var source = audiocontext.createBufferSource();
 			source.buffer = this.soundbuffer;
 			source.connect(gainNode);
-			source.start(0);
+			source.start(audiocontext.currentTime + delay);
 		};
 		mySound.prototype.setVolume = function(volume){
 			gainNode.gain.value = volume;	//currently this affects all sounds, but happily we want all the same volume
@@ -66,14 +65,14 @@ var MySound = (function(){
 			this.soundAddress = soundAddress;
 			this.audios = [];
 			this.nextAudio = 0;
-			this.NUM_AUDIOS = 5;	//for audio element fallback only.
+			this.NUM_AUDIOS = 25;	//for audio element fallback only.
 			for (var ii=0;ii<this.NUM_AUDIOS;ii++){
 				this.audios.push( new Audio(this.soundAddress) );
 			}
 		}
 		//static variables
 		mySound.usingAudioAPI= false; 
-		mySound.prototype.play = function(){
+		mySound.prototype.play = function(delay){	//note that delay is not used at this time - seems fine in IE without
 			console.log("will play sound, using fallback audio tags, from: " + this.soundAddress);
 			this.audios[this.nextAudio].play();
 			this.nextAudio = (this.nextAudio+1)%this.NUM_AUDIOS;
@@ -97,11 +96,11 @@ var myAudioPlayer = (function(){
 	var bombSound = new MySound('sounds/bomb50k.mp3');
 	
 	return {
-		playGunSound: function(){
-			gunSound.play();
+		playGunSound: function(delay){
+			gunSound.play(delay);
 		},
-		playBombSound: function(){
-			bombSound.play();
+		playBombSound: function(delay){
+			bombSound.play(delay);
 		},
 		setGlobalVolume: function(volume){
 			gunSound.setVolume(volume);
