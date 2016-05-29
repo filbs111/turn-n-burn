@@ -67,6 +67,13 @@
 				<option value="pp">&#x1f453;&#x1f453; pair play (for 3D TV)</option>
 			</select>
       	</div>
-		<button id=fullscreen onclick="launchFullscreen()">GO FULLSCREEN</button>
+		<button id=fullscreen style='float:left' onclick="launchFullscreen()">GO FULLSCREEN</button>
+		<div style='float:left'>
+			&nbsp
+			audio volume:
+			<input id="audio_slider_input" type="range"
+				min="0" max="1" step="0.1" value="1"
+				onchange="thrustLooper.setVolume(this.value)" />
+		</div>
     </body>
 </html>
