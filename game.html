@@ -8,6 +8,7 @@
 		<script src="js_utils/preloader.js"></script>
 		<script src="js_utils/multisound.js"></script>
 		<script src="js_utils/thrustsoundlooper.js"></script>
+		<script src="js_utils/globalvolumecontrol.js"></script>
 		<script src="js_utils/keys.js"></script>
 		<script src="js_utils/weapons.js"></script>
 		<script src="js_utils/explosions.js"></script>
@@ -74,7 +75,7 @@
 			audio volume:
 			<input id="audio_slider_input" type="range"
 				min="0" max="1" step="0.1" value="1"
-				onchange="thrustLooper.setGlobalVolume(this.value)" />
+				onchange="setGlobalVolume(this.value)" />
 		</div>
     </body>
 </html>

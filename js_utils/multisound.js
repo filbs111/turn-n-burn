@@ -10,6 +10,9 @@ var MySound = (function(){
 		window.AudioContext = window.AudioContext||window.webkitAudioContext;
 		audiocontext = new AudioContext();	//guess this is the bit that throws - can't do undefined()
 		
+		var gainNode = audiocontext.createGain();
+		gainNode.connect(audiocontext.destination);
+
 		//return a constructor instead, so can use this to make multiple sounds
 		var mySound = function(soundAddress){
 			this.soundAddress = soundAddress;
@@ -45,9 +48,12 @@ var MySound = (function(){
 
 			var source = audiocontext.createBufferSource();
 			source.buffer = this.soundbuffer;
-			source.connect(audiocontext.destination);
+			source.connect(gainNode);
 			source.start(0);
 		};
+		mySound.prototype.setVolume = function(volume){
+			gainNode.gain.value = volume;	//currently this affects all sounds, but happily we want all the same volume
+		}
 		
 		return mySound;
 		
@@ -72,12 +78,18 @@ var MySound = (function(){
 			this.audios[this.nextAudio].play();
 			this.nextAudio = (this.nextAudio+1)%this.NUM_AUDIOS;
 		};
+		mySound.prototype.setVolume = function(volume){
+			for (var ii=0;ii<this.NUM_AUDIOS;ii++){
+				this.audios[ii].volume = volume;
+			}
+		}
 		return mySound;
 		
 		
 	}
 
 })();
+
 
 var myAudioPlayer = (function(){
 	//make a few sounds
@@ -91,6 +103,9 @@ var myAudioPlayer = (function(){
 		playBombSound: function(){
 			bombSound.play();
 		},
+		setGlobalVolume: function(volume){
+			gunSound.setVolume(volume);
+			bombSound.setVolume(volume);
+		}
 	}
-	
 })();
