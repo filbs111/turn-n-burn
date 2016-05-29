@@ -1,6 +1,18 @@
 //use web audio api if available else fall back to audio elements
 var thrustLooper = (function(){
 	
+	var returnObject = new Object();
+	var globalVolume = 0;
+	var prescaledVolume = 0;
+	returnObject.setGlobalVolume = function(volume){
+		globalVolume = volume;
+		this.updateVolume();
+	}
+	returnObject.setPrescaledVolume = function(volume){
+		prescaledVolume = volume;
+		this.updateVolume();
+	}
+	
 	try {
 	
 		//web audio API doesn't have clean looping!
@@ -18,7 +30,6 @@ var thrustLooper = (function(){
 		
 		var soundbuffer = null;
 	
-		var returnObject = new Object();
 		returnObject.start = function(){
 				console.log("starting sound using web audio API");
 				
@@ -38,7 +49,9 @@ var thrustLooper = (function(){
 				setTimeout( function(){_this.start()}, 1000); //samples are 2s long, staggered 
 				
 			},
-		returnObject.setVolume= function(volume){ gainNode.gain.value = volume; }
+		returnObject.updateVolume= function(){
+			gainNode.gain.value = prescaledVolume * globalVolume;
+		}
 	
 		var request = new XMLHttpRequest();
 				request.open('GET', soundAddress, true);
@@ -67,7 +80,6 @@ var thrustLooper = (function(){
 			audios.push( new Audio(soundAddress) );
 		}
 		
-		var returnObject = new Object();
 		returnObject.start = function(){
 				console.log("starting sound using audio elements. nextAudio = " + nextAudio);
 				var currentAudio = audios[nextAudio];
@@ -78,7 +90,8 @@ var thrustLooper = (function(){
 				var _this= this;
 				setTimeout( function(){_this.start()}, 1000); //samples are 2s long, staggered 
 		};
-		returnObject.setVolume = function(volume){
+		returnObject.updateVolume = function(){
+				var volume = prescaledVolume * globalVolume;
 				audios[0].volume=volume;
 				audios[1].volume=volume;
 		};

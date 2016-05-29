@@ -191,6 +191,7 @@ window.onload = function() {
 	});
 	setSplitscreenMode(splitscreenDropdown.value);
 	
+	thrustLooper.setGlobalVolume(document.getElementById('audio_slider_input').value);
 
 	assetManager.setOnloadFunc(afterLoadFunc);
 	assetManager.setAssetsToPreload({
@@ -662,6 +663,9 @@ function updateMechanics(){
 	if(keyThing.keystate(191)){	// "/" key
 		player1object.vx += 0.06*player1object.sinAng;
 		player1object.vy -= 0.06*player1object.cosAng;
+		thrustLooper.setPrescaledVolume(1);	
+	} else {
+		thrustLooper.setPrescaledVolume(0);	
 	}
 	
 	//dropping bombs
