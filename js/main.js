@@ -660,13 +660,18 @@ function updateMechanics(){
 	player1object.cosAng = Math.cos(angRadians);
 	player1object.sinAng = Math.sin(angRadians);
 	//thrust
+	
+	var playersThrusting = 0;
 	if(keyThing.keystate(191)){	// "/" key
 		player1object.vx += 0.06*player1object.sinAng;
 		player1object.vy -= 0.06*player1object.cosAng;
-		thrustLooper.setPrescaledVolume(1);	
-	} else {
-		thrustLooper.setPrescaledVolume(0);	
+		playersThrusting++;
+	} 
+	//some temporary measure to be able hear 2nd player thrusting
+	if(keyThing.keystate(88)){	// "x" key
+		playersThrusting++;
 	}
+	thrustLooper.setPrescaledVolume(Math.sqrt(playersThrusting/2));	//IIRC power scales with players, so amplitude as sqrt
 	
 	//dropping bombs
 	if (gunCountdown>0){
