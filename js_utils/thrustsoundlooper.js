@@ -31,13 +31,13 @@ var thrustLooper = (function(){
 		var soundbuffer = null;
 	
 		returnObject.start = function(){
-				console.log("starting sound using web audio API");
+				//console.log("starting sound using web audio API");
 				
 				if (!soundbuffer){
 					console.log("not loaded yet. returning");
 					return;
 				}
-				console.log("will play sound");
+				//console.log("will play sound");
 	
 				var source = audiocontext.createBufferSource();
 				source.buffer = soundbuffer;
@@ -81,10 +81,14 @@ var thrustLooper = (function(){
 		}
 		
 		returnObject.start = function(){
-				console.log("starting sound using audio elements. nextAudio = " + nextAudio);
+				//console.log("starting sound using audio elements. nextAudio = " + nextAudio);
 				var currentAudio = audios[nextAudio];
-				currentAudio.currentTime = 0;
-				currentAudio.play();
+				
+				//http://stackoverflow.com/questions/20245164/audio-currenttime-invalidstateerror-ie11-js-html5
+				if (!isNaN(currentAudio.duration)) {
+					currentAudio.currentTime = 0;
+					currentAudio.play();
+				}
 				nextAudio = 1-nextAudio;
 				
 				var _this= this;
