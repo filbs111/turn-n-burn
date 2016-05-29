@@ -684,6 +684,7 @@ function updateMechanics(){
 			player1object.vx + currentWeapon.muz_vel*player1object.sinAng + currentWeapon.spray*gaussRand() , 
 			player1object.vy - currentWeapon.muz_vel*player1object.cosAng + currentWeapon.spray*gaussRand() ,
 			300);
+			myAudioPlayer.playGunSound();
 		}
 	}
 	
