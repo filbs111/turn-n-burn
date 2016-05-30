@@ -1,59 +1,64 @@
 "use strict";
 
 var weapons = (function generateWeapons(){
-	var weaponsArr = new Array();
+	var weaponsObj = {};
+	var currentIndex = 0;
 	
-	console.log("generating weapons!");
-	
+	weaponsObj.addWeapons = function(){
+		for(var w = 0; w < arguments.length; w++){
+			var thisWeap = arguments[w];
+			if (thisWeap.name){
+				weaponsObj[arguments[w].name] = new Weapon(thisWeap);
+				//add an alias so can select by number
+				weaponsObj[currentIndex] = weaponsObj[arguments[w].name];
+				currentIndex++;
+			}
+		}
+	}
+	weaponsObj.printWeapons = function(){
+		console.log("weapons array : " + JSON.stringify(weaponsObj));
+	}
 	//lots of variables eventually
 	//should cover things like spread shots, randomness, waves
 	//cluster bombs should be covered by weapons system somehow - eg a shot exploding is like firing a "weapon"
-	
-	weaponsArr.push(new Weapon({
-		'name': 'drop',
-		'shot_type': '1',
-		'muz_vel': 0,
-		'fire_interval': 8,
-		'shot_type_index': 1
-	}));
-	weaponsArr.push(new Weapon({
-		'name':'standard gun',
-		'shot_type': '2',
-		'muz_vel': 4,
-		'fire_interval': 6,
-		'shot_type_index': 1,
-		'spray': 1
-	}));
-	weaponsArr.push(new Weapon({
-		'name': 'rear gun',
-		'shot_type': '1',
-		'muz_vel': -2,
-		'fire_interval': 2,
-		'shot_type_index': 1
-	}));
-	weaponsArr.push(new Weapon({
-		'name': 'fast gun',
-		'shot_type': '1',
-		'muz_vel': 16,
-		'fire_interval': 4,
-		'shot_type_index': 1
-	}));
-	weaponsArr.push(new Weapon({
-		'name': 'rapid fire gun',
-		'shot_type': '1',
-		'muz_vel': 1,
-		'fire_interval': 1,
-		'shot_type_index': 1
-	}));
-	
-	//TODO have something that can load in some JSON
-	//json can be constructed from some spreadsheet
-	//that way can easily compare weapon properties etc.
-	
-	console.log("weapons array : " + JSON.stringify(weaponsArr));
-	
-	return weaponsArr;
+
+	return weaponsObj;
 })();
+
+//adding weapons into the list
+weapons.addWeapons({
+	'name': 'drop',
+	'shot_type': '1',
+	'muz_vel': 0,
+	'fire_interval': 8,
+	'shot_type_index': 1
+},{
+	'name':'standard gun',
+	'shot_type': '2',
+	'muz_vel': 4,
+	'fire_interval': 6,
+	'shot_type_index': 1,
+	'spray': 1
+},{
+	'name': 'rear gun',
+	'shot_type': '1',
+	'muz_vel': -2,
+	'fire_interval': 2,
+	'shot_type_index': 1
+},{
+	'name': 'fast gun',
+	'shot_type': '1',
+	'muz_vel': 16,
+	'fire_interval': 4,
+	'shot_type_index': 1
+},{
+	'name': 'rapid fire gun',
+	'shot_type': '1',
+	'muz_vel': 1,
+	'fire_interval': 1,
+	'shot_type_index': 1
+});
+weapons.printWeapons();
 
 
 function Weapon( configObj ){
