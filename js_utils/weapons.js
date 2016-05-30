@@ -29,7 +29,7 @@ function Shot( configObj ){
 	this.wall_mode = configObj["wall_mode"] | 0;
 	this.prox_mode = configObj["prox_mode"] | 0;
 	this.radius = configObj["radius"] | 0;
-	this.timer = configObj["timer"] | 0;
+	this.timer = configObj["timer"] | 300;
 	this.kinetic_mode = configObj["kinetic_mode"] | 0;
 	this.blast_image = configObj["blast_image"] | 0;
 	this.blast_power = configObj["blast_power"] | 0;

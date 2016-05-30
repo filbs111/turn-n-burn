@@ -230,7 +230,7 @@ window.onload = function() {
 		for (var ii=0;ii<numdirections;ii++){
 			vx = player1object.vx + speed*Math.sin(angle);
 			vy = player1object.vy + speed*Math.cos(angle);
-			new Bomb(player1object.x, player1object.y, vx, vy, 300, shotTypes.byName.standard );
+			new Bomb(player1object.x, player1object.y, vx, vy, shotTypes.byName.standard );
 			angle+=anglestep;
 		}
 	});
@@ -243,7 +243,7 @@ window.onload = function() {
 		for (var ii=0;ii<numshots;ii++){
 			vx = player1object.vx + speed*gaussRand();
 			vy = player1object.vy + speed*gaussRand();
-			new Bomb(player1object.x, player1object.y, vx, vy, 300, shotTypes.byName.bounce );
+			new Bomb(player1object.x, player1object.y, vx, vy, shotTypes.byName.bounce );
 		}
 	});
 }
@@ -682,7 +682,6 @@ function updateMechanics(virtualTime){
 			new Bomb(player1object.x, player1object.y, 
 			player1object.vx + currentWeapon.muz_vel*player1object.sinAng + currentWeapon.spray*gaussRand() , 
 			player1object.vy - currentWeapon.muz_vel*player1object.cosAng + currentWeapon.spray*gaussRand() ,
-			300,
 			shotTypes.byName.standard);
 			
 			var timeDelay = virtualTime - getTimestamp();
@@ -762,12 +761,12 @@ function getNormal(x,y){
 
 
 //from tutorial: https://www.youtube.com/watch?v=YCI8uqePkrc
-function Bomb(x,y,vx,vy,t,shotType){
+function Bomb(x,y,vx,vy,shotType){
 	this.x = x;
 	this.y = y;
 	this.vx = vx;
 	this.vy = vy;
-	this.timer = t;
+	this.timer = shotType.timer;
 	this.alive = true;
 	this.id = bombidx;
 	this.shotType = shotType;
