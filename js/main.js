@@ -246,12 +246,6 @@ window.onload = function() {
 			new Bomb(player1object.x, player1object.y, vx, vy, 300);
 		}
 	});
-	
-	for (var ii=0;ii<5;ii++){
-		thatweapon = weapons[ii];
-		console.log("hopefully adding a callback for a weapon named " + thatweapon['name']);
-		addNumberClickHandler(ii,48+ii);
-	}
 }
 
 

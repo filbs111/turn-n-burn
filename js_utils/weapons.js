@@ -1,29 +1,39 @@
 "use strict";
 
-var weapons = (function generateWeapons(){
-	var weaponsObj = {};
-	weaponsObj.byName = {};
+var thingListMaker = function generateThing(thingClass){
+	var thingObj = {};
+	thingObj.byName = {};
 	
-	weaponsObj.addWeapons = function(){
-		for(var w = 0; w < arguments.length; w++){
-			var thisWeap = arguments[w];
-			if (thisWeap.name){
-				weaponsObj.byName[arguments[w].name] = new Weapon(thisWeap);
+	thingObj.add = function(){
+		for(var t = 0; t < arguments.length; t++){
+			var thisThing = arguments[t];
+			if (thisThing.name){
+				thingObj.byName[thisThing.name] = new thingClass(thisThing);
 			}
 		}
 	}
-	weaponsObj.printWeapons = function(){
-		console.log("weapons array : " + JSON.stringify(weaponsObj));
+	thingObj.print = function(){
+		console.log("weapons array : " + JSON.stringify(thingObj));
 	}
 	//lots of variables eventually
 	//should cover things like spread shots, randomness, waves
 	//cluster bombs should be covered by weapons system somehow - eg a shot exploding is like firing a "weapon"
 
-	return weaponsObj;
-})();
+	return thingObj;
+}
+
+function Weapon( configObj ){
+	this.name = configObj["name"];
+	this.shot_type = configObj["shot_type"];
+	this.muz_vel = configObj["muz_vel"];
+	this.fire_interval = configObj["fire_interval"];
+	this.spray = configObj.spray | 0;
+}
+
+var weapons = thingListMaker(Weapon);
 
 //adding weapons into the list
-weapons.addWeapons({
+weapons.add({
 	'name': 'drop',
 	'shot_type': '1',
 	'muz_vel': 0,
@@ -55,16 +65,10 @@ weapons.addWeapons({
 	'fire_interval': 1,
 	'shot_type_index': 1
 });
-weapons.printWeapons();
+weapons.print();
 
 
-function Weapon( configObj ){
-	this.name = configObj["name"];
-	this.shot_type = configObj["shot_type"];
-	this.muz_vel = configObj["muz_vel"];
-	this.fire_interval = configObj["fire_interval"];
-	this.spray = configObj.spray | 0;
-}
+
 
 //same idea as _set_stype from gfx.dba
 function Shot( configObj ){
