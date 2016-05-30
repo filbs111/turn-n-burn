@@ -2,16 +2,13 @@
 
 var weapons = (function generateWeapons(){
 	var weaponsObj = {};
-	var currentIndex = 0;
+	weaponsObj.byName = {};
 	
 	weaponsObj.addWeapons = function(){
 		for(var w = 0; w < arguments.length; w++){
 			var thisWeap = arguments[w];
 			if (thisWeap.name){
-				weaponsObj[arguments[w].name] = new Weapon(thisWeap);
-				//add an alias so can select by number
-				weaponsObj[currentIndex] = weaponsObj[arguments[w].name];
-				currentIndex++;
+				weaponsObj.byName[arguments[w].name] = new Weapon(thisWeap);
 			}
 		}
 	}

@@ -65,8 +65,6 @@ var keyThing;	//used in conjnuction with js_utils/keys.js
 var bombs = {};	//this should probably be some kind of object so can have method to draw all etc
 var bombidx =0;	//every time make a new bomb increase this. realistically probebl no problem with fact number is limited, but bothersome...
 
-var currentWeapon = weapons[0];	//select default weapon
-
 var explosionDropdown, explosionDropdownRadius;
 var rocketDropdown, rocketColour;
 
@@ -193,6 +191,17 @@ window.onload = function() {
 	
 	thrustLooper.setGlobalVolume(document.getElementById('audio_slider_input').value);
 
+	var weaponDropdown = document.getElementById('weapon_dropdown');
+	weaponDropdown.addEventListener('change', function(evt){
+		currentWeapon = weapons.byName[weaponDropdown.value];
+	});
+	for (var i in weapons.byName){		//populate dropdown options from weapons object. i is index == name of weapon
+		var newOption = document.createElement('option');
+		newOption.innerHTML = i;
+		weaponDropdown.appendChild(newOption);
+	}
+	currentWeapon = weapons.byName[weaponDropdown.value];
+	
 	assetManager.setOnloadFunc(afterLoadFunc);
 	assetManager.setAssetsToPreload({
 		LEVEL_DESTR: settings.LEVEL_DESTR_SRC,
@@ -238,14 +247,6 @@ window.onload = function() {
 		}
 	});
 	
-	//number keys to switch weapons (not numeric keys at the mo.) //buttons 0,1-9 have ondownkey numbers 48,49-57 
-	//because http://tobyho.com/2011/11/02/callbacks-in-loops/
-	function addNumberClickHandler(ii,kk){
-		keyThing.setKeydownCallback(kk, function(){
-			currentWeapon = weapons[ii];
-			console.log("pressed a key. weapon name = " + currentWeapon.name );
-		});
-	}
 	for (var ii=0;ii<5;ii++){
 		thatweapon = weapons[ii];
 		console.log("hopefully adding a callback for a weapon named " + thatweapon['name']);
