@@ -230,7 +230,7 @@ window.onload = function() {
 		for (var ii=0;ii<numdirections;ii++){
 			vx = player1object.vx + speed*Math.sin(angle);
 			vy = player1object.vy + speed*Math.cos(angle);
-			new Bomb(player1object.x, player1object.y, vx, vy, 300 );
+			new Bomb(player1object.x, player1object.y, vx, vy, 300, shotTypes.byName.standard );
 			angle+=anglestep;
 		}
 	});
@@ -243,7 +243,7 @@ window.onload = function() {
 		for (var ii=0;ii<numshots;ii++){
 			vx = player1object.vx + speed*gaussRand();
 			vy = player1object.vy + speed*gaussRand();
-			new Bomb(player1object.x, player1object.y, vx, vy, 300);
+			new Bomb(player1object.x, player1object.y, vx, vy, 300, shotTypes.byName.bounce );
 		}
 	});
 }
@@ -682,7 +682,8 @@ function updateMechanics(virtualTime){
 			new Bomb(player1object.x, player1object.y, 
 			player1object.vx + currentWeapon.muz_vel*player1object.sinAng + currentWeapon.spray*gaussRand() , 
 			player1object.vy - currentWeapon.muz_vel*player1object.cosAng + currentWeapon.spray*gaussRand() ,
-			300);
+			300,
+			shotTypes.byName.standard);
 			
 			var timeDelay = virtualTime - getTimestamp();
 			//console.log ("time delay : " + timeDelay);
@@ -761,7 +762,7 @@ function getNormal(x,y){
 
 
 //from tutorial: https://www.youtube.com/watch?v=YCI8uqePkrc
-function Bomb(x,y,vx,vy,t){
+function Bomb(x,y,vx,vy,t,shotType){
 	this.x = x;
 	this.y = y;
 	this.vx = vx;
@@ -769,6 +770,7 @@ function Bomb(x,y,vx,vy,t){
 	this.timer = t;
 	this.alive = true;
 	this.id = bombidx;
+	this.shotType = shotType;
 	bombs[bombidx++]=this;
 }
 Bomb.prototype.iterate = function(){
@@ -802,8 +804,11 @@ Bomb.prototype.iterate = function(){
 		} else if (getCollisionPixelDataXY(~~this.x,~~this.y)!=0){
 			//collision with arena....
 			//seems like a risk here that ~~ could get some number outside of arena despite checking the above....	
-			//this.destroy();
-			this.bounce();
+			if (this.shotType.wall_mode == Shot.WALL_MODE_BOUNCE){
+				this.bounce();
+			} else {
+				this.destroy();
+			}
 			return;
 		}
 	}
