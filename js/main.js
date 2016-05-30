@@ -688,8 +688,6 @@ function updateMechanics(virtualTime){
 			player1object.vx + currentWeapon.muz_vel*player1object.sinAng + currentWeapon.spray*gaussRand() , 
 			player1object.vy - currentWeapon.muz_vel*player1object.cosAng + currentWeapon.spray*gaussRand() ,
 			300);
-			myAudioPlayer.playGunSound(0);
-			//myAudioPlayer.playGunSound((40+mechanicsLeadTime)/1000);
 			
 			var timeDelay = virtualTime - getTimestamp();
 			//console.log ("time delay : " + timeDelay);
@@ -698,11 +696,7 @@ function updateMechanics(virtualTime){
 			    //	<0, and web audio api will try to play before current time, resulting in it playing it now.
 				//improvements?
 				//have a sound with nothing at start, and set time instead of delaying, or
-				//for long delays, use setTimeout to get closer to desired time then play
-			
-			//myAudioPlayer.playGunSound(500);	
-			//myAudioPlayer.playGunSound(0.5);	//delay is in seconds!!
-
+				//for long delays, use setTimeout to get closer to desired time then play 
 		}
 	}
 	

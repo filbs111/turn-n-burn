@@ -24,7 +24,7 @@
 		this.life = 29;
 		this.speed = speed;
 		explosions[explosion_idx++]=this;
-		myAudioPlayer.playBombSound();
+		myAudioPlayer.playBombSound(0);
 	}
 	Explosion.prototype.spriteSheetStep = 128;
 	Explosion.prototype.spriteSheetXDivs = 6;
