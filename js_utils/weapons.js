@@ -59,9 +59,11 @@ shotTypes.add({
 function Weapon( configObj ){
 	this.name = configObj["name"];
 	this.shot_type = configObj["shot_type"];
-	this.muz_vel = configObj["muz_vel"];
+	this.muz_vel = configObj["muz_vel"] | 0;
 	this.fire_interval = configObj["fire_interval"];
 	this.spray = configObj.spray | 0;
+	this.autofire = (configObj.autofire === undefined) ? true : configObj.autofire;
+	this.num_projectiles = configObj.num_projectiles | 1;
 }
 
 var weapons = thingListMaker(Weapon);
@@ -69,9 +71,8 @@ var weapons = thingListMaker(Weapon);
 //adding weapons into the list
 weapons.add({
 	'name': 'drop',
-	'muz_vel': 0,
 	'fire_interval': 8,
-	'shot_type': 'standard'
+	'shot_type': 'standard',
 },{
 	'name':'standard gun',
 	'muz_vel': 4,
@@ -98,6 +99,22 @@ weapons.add({
 	'muz_vel': 1.5,
 	'fire_interval': 3,
 	'shot_type': 'bounce'
+},{
+	'name': 'continuous spray',
+	'fire_interval': 2,
+	'shot_type': 'standard',
+	'spray': 10
+},{
+	'name': 'burst spray',
+	'fire_interval': 5,
+	'shot_type': 'standard',
+	'spray': 10,
+	'num_projectiles':10
+},{
+	'name': 'semi auto bomb',
+	'fire_interval': 20,
+	'shot_type': 'standard',
+	'autofire':false
 });
 weapons.print();
 

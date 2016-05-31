@@ -64,6 +64,7 @@ var keyThing;	//used in conjnuction with js_utils/keys.js
 
 var bombs = {};	//this should probably be some kind of object so can have method to draw all etc
 var bombidx =0;	//every time make a new bomb increase this. realistically probebl no problem with fact number is limited, but bothersome...
+var semiAutoReady = true;
 
 var explosionDropdown, explosionDropdownRadius;
 var rocketDropdown, rocketColour;
@@ -673,26 +674,33 @@ function updateMechanics(virtualTime){
 	thrustLooper.setPrescaledVolume(Math.sqrt(playersThrusting/2));	//IIRC power scales with players, so amplitude as sqrt
 	
 	//dropping bombs
+	if (!keyThing.bombKey()){semiAutoReady = true;}
+	
 	if (gunCountdown>0){
 		gunCountdown--;
 	} else {
 		if (keyThing.bombKey()){
-			gunCountdown = currentWeapon.fire_interval;
-			//console.log("dropped a bomb!");
-			new Bomb(player1object.x, player1object.y, 
-			player1object.vx + currentWeapon.muz_vel*player1object.sinAng + currentWeapon.spray*gaussRand() , 
-			player1object.vy - currentWeapon.muz_vel*player1object.cosAng + currentWeapon.spray*gaussRand() ,
-			shotTypes.byName.standard);
-			
-			var timeDelay = virtualTime - getTimestamp();
-			//console.log ("time delay : " + timeDelay);
-			
-			myAudioPlayer.playGunSound( (40+timeDelay)/1000 ) ;	//timeDelay is typically -ve. if <-40, param passed becomes
-			    //	<0, and web audio api will try to play before current time, resulting in it playing it now.
-				//improvements?
-				//have a sound with nothing at start, and set time instead of delaying, or
-				//for long delays, use setTimeout to get closer to desired time then play 
-		}
+			if ( currentWeapon.autofire | semiAutoReady ){
+				semiAutoReady = false;
+				gunCountdown = currentWeapon.fire_interval;
+				//console.log("dropped a bomb!");
+				
+				for (var shotNum = 0; shotNum<currentWeapon.num_projectiles; shotNum++){
+					new Bomb(player1object.x, player1object.y, 
+					player1object.vx + currentWeapon.muz_vel*player1object.sinAng + currentWeapon.spray*gaussRand() , 
+					player1object.vy - currentWeapon.muz_vel*player1object.cosAng + currentWeapon.spray*gaussRand() ,
+					shotTypes.byName.standard);
+				}
+				var timeDelay = virtualTime - getTimestamp();
+				//console.log ("time delay : " + timeDelay);
+				
+				myAudioPlayer.playGunSound( (40+timeDelay)/1000 ) ;	//timeDelay is typically -ve. if <-40, param passed becomes
+					//	<0, and web audio api will try to play before current time, resulting in it playing it now.
+					//improvements?
+					//have a sound with nothing at start, and set time instead of delaying, or
+					//for long delays, use setTimeout to get closer to desired time then play 
+			}
+		} 
 	}
 	
 	for (var b in bombs){
