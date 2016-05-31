@@ -24,19 +24,19 @@ var thingListMaker = function generateThing(thingClass){
 
 //same idea as _set_stype from gfx.dba
 function Shot( configObj ){
-	this.damage = configObj["damage"] | 0;
-	this.mass = configObj["mass"] | 1;
-	this.wall_mode = configObj["wall_mode"] | 0;
-	this.prox_mode = configObj["prox_mode"] | 0;
-	this.radius = configObj["radius"] | 0;
-	this.timer = configObj["timer"] | 300;
-	this.kinetic_mode = configObj["kinetic_mode"] | 0;
-	this.blast_image = configObj["blast_image"] | 0;
-	this.blast_power = configObj["blast_power"] | 0;
-	this.exp_size = configObj["exp_size"] | 0;
-	this.exp_speed = configObj["exp_speed"] | 0;
-	this.exp_type = configObj["exp_type"] | 0;
-	this.drag = configObj["drag"] | 0;
+	this.damage = configObj["damage"] || 0;
+	this.mass = configObj["mass"] || 1;
+	this.wall_mode = configObj["wall_mode"] || 0;
+	this.prox_mode = configObj["prox_mode"] || 0;
+	this.radius = configObj["radius"] || 0;
+	this.timer = configObj["timer"] || 300;
+	this.kinetic_mode = configObj["kinetic_mode"] || 0;
+	this.blast_image = configObj["blast_image"] || 0;
+	this.blast_power = configObj["blast_power"] || 0;
+	this.exp_size = configObj["exp_size"] || 0;
+	this.exp_speed = configObj["exp_speed"] || 0;
+	this.exp_type = configObj["exp_type"] || 0;
+	this.drag = configObj["drag"] || 0;
 	//TODO some way to use constants eg someObject.WALL_MODE_BOUNCE
 
 	//other things? 
@@ -59,11 +59,11 @@ shotTypes.add({
 function Weapon( configObj ){
 	this.name = configObj["name"];
 	this.shot_type = shotTypes.byName[configObj["shot_type"]];
-	this.muz_vel = configObj["muz_vel"] | 0;
+	this.muz_vel = configObj["muz_vel"] || 0;
 	this.fire_interval = configObj["fire_interval"];
-	this.spray = configObj.spray | 0;
+	this.spray = configObj.spray || 0;
 	this.autofire = (configObj.autofire === undefined) ? true : configObj.autofire;
-	this.num_projectiles = configObj.num_projectiles | 1;
+	this.num_projectiles = configObj.num_projectiles || 1;
 }
 
 var weapons = thingListMaker(Weapon);
@@ -121,6 +121,14 @@ weapons.add({
 	'name': 'semi auto bomb',
 	'fire_interval': 20,
 	'shot_type': 'standard',
+	'autofire':false
+},{
+	'name': 'shotgun',
+	'muz_vel': 2.5,
+	'fire_interval': 10,
+	'shot_type': 'standard',
+	'spray': 0.5,
+	'num_projectiles':16,
 	'autofire':false
 });
 weapons.print();
