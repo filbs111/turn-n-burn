@@ -33,7 +33,7 @@ function Shot( configObj ){
 	this.kinetic_mode = configObj["kinetic_mode"] || 0;
 	this.blast_image = configObj["blast_image"] || 0;
 	this.blast_power = configObj["blast_power"] || 0;
-	this.exp_size = configObj["exp_size"] || 0;
+	this.exp_size = configObj["exp_size"] || 8;
 	this.exp_speed = configObj["exp_speed"] || 0;
 	this.exp_type = configObj["exp_type"] || 0;
 	this.drag = configObj["drag"] || 0;
@@ -42,6 +42,9 @@ function Shot( configObj ){
 	//other things? 
 	//rotation (eg for bananas)
 	//shots that disperse other shots continually? 
+	console.log("config obj for shot was : " + JSON.stringify(configObj));
+	console.log("made a new shot : " + JSON.stringify(this));
+	
 }
 Shot.WALL_MODE_BOUNCE =0;
 Shot.WALL_MODE_EXPLODE =1;
@@ -54,6 +57,10 @@ shotTypes.add({
 	},{
 	'name': 'bounce',
 	'wall_mode': Shot.WALL_MODE_BOUNCE
+	},{
+	'name': 'big',
+	'wall_mode': Shot.WALL_MODE_EXPLODE,
+	'exp_size': 24
 });
 
 function Weapon( configObj ){
@@ -72,7 +79,7 @@ var weapons = thingListMaker(Weapon);
 weapons.add({
 	'name': 'drop',
 	'fire_interval': 8,
-	'shot_type': 'standard',
+	'shot_type': 'big',
 },{
 	'name':'standard gun',
 	'muz_vel': 4,
@@ -113,15 +120,14 @@ weapons.add({
 },{
 	'name': 'bouncy burst spray',
 	'fire_interval': 8,
-	'shot_type': 'standard',
+	'shot_type': 'bounce',
 	'spray': 4,
-	'num_projectiles':16,
-	'shot_type': 'bounce'
+	'num_projectiles':16
 },{
 	'name': 'semi auto bomb',
 	'fire_interval': 20,
-	'shot_type': 'standard',
-	'autofire':false
+	'shot_type': 'big',
+	'autofire':false,
 },{
 	'name': 'shotgun',
 	'muz_vel': 2.5,

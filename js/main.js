@@ -379,7 +379,7 @@ function makeACircle(evt){
     //to time how long this takes
     var startTime = Date.now();
     
-    var radius = explosionDropdownRadius;
+	var radius = evt.radius || explosionDropdownRadius;
 	
     var diam = radius+radius;
 	var radsq = radius*radius;
@@ -819,10 +819,10 @@ Bomb.prototype.destroy = function(){
 	//console.log("detonating bomb . x = " + ~~this.x + ", y = " + ~~this.y );
 
 	this.alive = false;
-	makeACircle({offsetX:~~this.x, offsetY:~~this.y});
+	makeACircle({offsetX:~~this.x, offsetY:~~this.y, radius:this.shotType.exp_size});
 	delete bombs[this.id];
 	//new Explosion(~~this.x, ~~this.y , 0,0, 100,0.5 );	//fixed size for now - seems about right for radius 48
-	new Explosion(~~this.x, ~~this.y , 0,0, 1.6*explosionDropdownRadius,1 );
+	new Explosion(~~this.x, ~~this.y , 0,0, 1.6*this.shotType.exp_size,1 );
 }
 Bomb.prototype.bounce = function(){
 	//reflection off normal http://www.3dkingdoms.com/weekly/weekly.php?a=2  Vnew = b * ( -2*(V dot N)*N + V )
