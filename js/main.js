@@ -689,7 +689,7 @@ function updateMechanics(virtualTime){
 					new Bomb(player1object.x, player1object.y, 
 					player1object.vx + currentWeapon.muz_vel*player1object.sinAng + currentWeapon.spray*gaussRand() , 
 					player1object.vy - currentWeapon.muz_vel*player1object.cosAng + currentWeapon.spray*gaussRand() ,
-					shotTypes.byName.standard);
+					currentWeapon.shot_type);
 				}
 				var timeDelay = virtualTime - getTimestamp();
 				//console.log ("time delay : " + timeDelay);
@@ -779,6 +779,7 @@ function Bomb(x,y,vx,vy,shotType){
 	this.id = bombidx;
 	this.shotType = shotType;
 	bombs[bombidx++]=this;
+	//console.log("dropped a bomb, shot type = " + shotType);
 }
 Bomb.prototype.iterate = function(){
 	
@@ -811,6 +812,9 @@ Bomb.prototype.iterate = function(){
 		} else if (getCollisionPixelDataXY(~~this.x,~~this.y)!=0){
 			//collision with arena....
 			//seems like a risk here that ~~ could get some number outside of arena despite checking the above....	
+			
+			//console.log("will bounce or explode bomb. shot type: " + this.shotType + ", wall mode: " + this.shotType.wall_mode);
+			
 			if (this.shotType.wall_mode == Shot.WALL_MODE_BOUNCE){
 				this.bounce();
 			} else {

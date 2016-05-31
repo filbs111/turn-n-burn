@@ -58,7 +58,7 @@ shotTypes.add({
 
 function Weapon( configObj ){
 	this.name = configObj["name"];
-	this.shot_type = configObj["shot_type"];
+	this.shot_type = shotTypes.byName[configObj["shot_type"]];
 	this.muz_vel = configObj["muz_vel"] | 0;
 	this.fire_interval = configObj["fire_interval"];
 	this.spray = configObj.spray | 0;
@@ -110,6 +110,13 @@ weapons.add({
 	'shot_type': 'standard',
 	'spray': 10,
 	'num_projectiles':10
+},{
+	'name': 'bouncy burst spray',
+	'fire_interval': 8,
+	'shot_type': 'standard',
+	'spray': 4,
+	'num_projectiles':16,
+	'shot_type': 'bounce'
 },{
 	'name': 'semi auto bomb',
 	'fire_interval': 20,
