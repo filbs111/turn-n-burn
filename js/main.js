@@ -235,18 +235,6 @@ window.onload = function() {
 			angle+=anglestep;
 		}
 	});
-	keyThing.setKeydownCallback(98,function(){			//98 = numpad 2
-		console.log("fired spray shot");
-		var numshots = 16;
-		var speed =4;
-		var vx,vy;
-		//todo precalculate random numbers and cycle them
-		for (var ii=0;ii<numshots;ii++){
-			vx = player1object.vx + speed*gaussRand();
-			vy = player1object.vy + speed*gaussRand();
-			new Bomb(player1object.x, player1object.y, vx, vy, shotTypes.byName.bounce );
-		}
-	});
 }
 
 
