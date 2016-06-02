@@ -36,7 +36,7 @@ function Shot( configObj ){
 	this.exp_size = configObj["exp_size"] || 8;
 	this.exp_speed = configObj["exp_speed"] || 0;
 	this.exp_type = configObj["exp_type"] || 0;
-	this.drag = configObj["drag"] || 0;
+	this.drag = configObj["drag"] || 1.0;
 	//TODO some way to use constants eg someObject.WALL_MODE_BOUNCE
 
 	//other things? 
@@ -61,6 +61,10 @@ shotTypes.add({
 	'name': 'big',
 	'wall_mode': Shot.WALL_MODE_EXPLODE,
 	'exp_size': 24
+	},{
+	'name': 'para mine',
+ 	'wall_mode': Shot.WALL_MODE_BOUNCE,
+	'drag': 0.95
 });
 
 function Weapon( configObj ){
@@ -136,6 +140,10 @@ weapons.add({
 	'spray': 0.5,
 	'num_projectiles':16,
 	'autofire':false
+},{
+	'name': 'para mines',
+	'fire_interval': 10,
+	'shot_type': 'para mine'
 });
 weapons.print();
 

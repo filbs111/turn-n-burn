@@ -781,6 +781,9 @@ Bomb.prototype.iterate = function(){
 		}
 	}
 	
+	this.vx*=this.shotType.drag;
+	this.vy*=this.shotType.drag;
+	
 	var numSteps = Math.ceil(Math.max(Math.abs(this.vx), Math.abs(this.vy)));
 	var vxstep = this.vx/numSteps;
 	var vystep = this.vy/numSteps;
