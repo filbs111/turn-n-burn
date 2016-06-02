@@ -133,7 +133,7 @@ Screen.prototype.render = function(){
 		//console.log("processing a bomb in draw loop");
 		bombs[b].draw();
 	}
-	ctx.globalCompositeOperation = "screen";
+	ctx.globalCompositeOperation = "lighter";
 	for (var e in explosions){
 		explosions[e].draw();
 	}
