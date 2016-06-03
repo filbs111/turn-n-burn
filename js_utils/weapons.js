@@ -75,6 +75,11 @@ function Weapon( configObj ){
 	this.spray = configObj.spray || 0;
 	this.autofire = (configObj.autofire === undefined) ? true : configObj.autofire;
 	this.num_projectiles = configObj.num_projectiles || 1;
+	this.reset_wave = configObj.reset_wave || false;
+	this.wave_start = configObj.wave_start || 0;
+	this.v_wave_start = configObj.v_wave_start || this.wave_start;
+	this.wave_step = configObj.wave_step || 0;
+	this.v_wave_step = configObj.v_wave_step || this.wave_step;
 }
 
 var weapons = thingListMaker(Weapon);
@@ -144,6 +149,39 @@ weapons.add({
 	'name': 'para mines',
 	'fire_interval': 10,
 	'shot_type': 'para mine'
+},{
+	'name': 'multidir shot',
+	'fire_interval': 20,
+	'shot_type': 'big',
+	'num_projectiles':18,
+	'muz_vel': 3,
+	'wave_step': 20
+},{
+	'name': 'forward multidir shot',
+	'fire_interval': 20,
+	'shot_type': 'big',
+	'num_projectiles':18,
+	'muz_vel': 3,
+	'wave_step': 10,
+	'reset_wave':true,
+	'wave_start':-85
+},{
+	'name': 'reverse multidir shot',
+	'fire_interval': 20,
+	'shot_type': 'big',
+	'num_projectiles':18,
+	'muz_vel': 3,
+	'wave_step': 10,
+	'reset_wave':true,
+	'wave_start':95
+},{
+	'name': 'bullet hell',
+	'fire_interval': 3,
+	'shot_type': 'standard',
+	'num_projectiles':2,
+	'muz_vel': 3,
+	'wave_step': 231,
+	'v_wave_step': 51
 });
 weapons.print();
 

@@ -2,6 +2,7 @@ var screencanvas, screencanvas_p2;
 var screensize_divisors={};
 var pairplay_xstretch;
 var player1object, p1screen;
+var player2object, p2screen;
 
 var gunCountdown;
 
@@ -192,16 +193,6 @@ window.onload = function() {
 	
 	thrustLooper.setGlobalVolume(document.getElementById('audio_slider_input').value);
 
-	var weaponDropdown = document.getElementById('weapon_dropdown');
-	weaponDropdown.addEventListener('change', function(evt){
-		currentWeapon = weapons.byName[weaponDropdown.value];
-	});
-	for (var i in weapons.byName){		//populate dropdown options from weapons object. i is index == name of weapon
-		var newOption = document.createElement('option');
-		newOption.innerHTML = i;
-		weaponDropdown.appendChild(newOption);
-	}
-	currentWeapon = weapons.byName[weaponDropdown.value];
 	
 	assetManager.setOnloadFunc(afterLoadFunc);
 	assetManager.setAssetsToPreload({
@@ -220,20 +211,6 @@ window.onload = function() {
 	keyThing.setKeydownCallback(17,function(){			//17 = ctrl
 		//console.log("dropped a bomb!");
 		//new Bomb(player1object.x, player1objecty, player1object.vx, player1object.vy);
-	});
-	keyThing.setKeydownCallback(97,function(){			//97 = numpad 1
-		console.log("fired multidirectional shot");
-		var numdirections = 16;
-		var anglestep = 2*Math.PI/numdirections;
-		var speed =2;
-		var angle = 0;
-		var vx,vy;
-		for (var ii=0;ii<numdirections;ii++){
-			vx = player1object.vx + speed*Math.sin(angle);
-			vy = player1object.vy + speed*Math.cos(angle);
-			new Bomb(player1object.x, player1object.y, vx, vy, shotTypes.byName.standard );
-			angle+=anglestep;
-		}
 	});
 }
 
@@ -648,7 +625,9 @@ function updateMechanics(virtualTime){
 	player1object.cosAng = Math.cos(angRadians);
 	player1object.sinAng = Math.sin(angRadians);
 	//thrust
-	
+	var cosAng = player1object.cosAng;
+	var sinAng = player1object.sinAng;
+
 	var playersThrusting = 0;
 	if(keyThing.keystate(191)){	// "/" key
 		player1object.vx += 0.06*player1object.sinAng;
@@ -664,20 +643,40 @@ function updateMechanics(virtualTime){
 	//dropping bombs
 	if (!keyThing.bombKey()){semiAutoReady = true;}
 	
+	var currentWeapon = player1object.weapon;
+	var currentWeaponType = currentWeapon.type;
+	
+	if (currentWeaponType.reset_wave){
+		currentWeapon.hwave = currentWeaponType.wave_start;
+		currentWeapon.vwave = currentWeaponType.v_wave_start;
+	}
+	
 	if (gunCountdown>0){
 		gunCountdown--;
 	} else {
 		if (keyThing.bombKey()){
-			if ( currentWeapon.autofire | semiAutoReady ){
+			if ( currentWeaponType.autofire | semiAutoReady ){
 				semiAutoReady = false;
-				gunCountdown = currentWeapon.fire_interval;
+				gunCountdown = currentWeaponType.fire_interval;
 				//console.log("dropped a bomb!");
 				
-				for (var shotNum = 0; shotNum<currentWeapon.num_projectiles; shotNum++){
-					new Bomb(player1object.x, player1object.y, 
-					player1object.vx + currentWeapon.muz_vel*player1object.sinAng + currentWeapon.spray*gaussRand() , 
-					player1object.vy - currentWeapon.muz_vel*player1object.cosAng + currentWeapon.spray*gaussRand() ,
-					currentWeapon.shot_type);
+				var hAng, vAng, forwardMuzvel, sideMuzvel;
+				
+				for (var shotNum = 0; shotNum<currentWeaponType.num_projectiles; shotNum++){
+					
+					hAng = Math.PI * (currentWeapon.hwave) / 180;	//note this is very inefficient -
+					vAng = Math.PI * (currentWeapon.vwave) / 180; //ideally should precalculate.
+					
+					forwardMuzvel = currentWeaponType.muz_vel * Math.cos(vAng);
+					sideMuzvel = currentWeaponType.muz_vel * Math.sin(hAng);
+					
+					new Bomb(player1object.x, player1object.y,
+					player1object.vx + forwardMuzvel*sinAng + sideMuzvel*cosAng + currentWeaponType.spray*gaussRand() , 
+					player1object.vy - forwardMuzvel*cosAng + sideMuzvel*sinAng + currentWeaponType.spray*gaussRand() ,
+					currentWeaponType.shot_type);
+					
+					currentWeapon.hwave += currentWeaponType.wave_step;
+					currentWeapon.vwave += currentWeaponType.v_wave_step;
 				}
 				var timeDelay = virtualTime - getTimestamp();
 				//console.log ("time delay : " + timeDelay);
@@ -885,7 +884,8 @@ function afterLoadFunc(){
 		vy:0,
 		ang:0,
 		cosAng:1,
-		sinAng:0
+		sinAng:0,
+		weapon: {}
 	}
 	player2object = {
 		id:1,
@@ -895,12 +895,27 @@ function afterLoadFunc(){
 		vy:0,
 		ang:0,
 		cosAng:1,
-		sinAng:0
+		sinAng:0,
+		weapon: {}
 	}
 	
 	p1screen = new Screen(screencanvas, player1object, player2object);
 	p2screen = new Screen(screencanvas_p2, player2object, player1object);
 
+	var weaponDropdown = document.getElementById('weapon_dropdown');
+	weaponDropdown.addEventListener('change', function(evt){
+		player1object.weapon.type = weapons.byName[weaponDropdown.value];
+		player1object.weapon.hwave = 0;
+		player1object.weapon.vwave = 0;
+	});
+	for (var i in weapons.byName){		//populate dropdown options from weapons object. i is index == name of weapon
+		var newOption = document.createElement('option');
+		newOption.innerHTML = i;
+		weaponDropdown.appendChild(newOption);
+	}
+	player1object.weapon.type = weapons.byName[weaponDropdown.value];	
+	player1object.weapon.hwave = 0;
+	player1object.weapon.vwave = 0;	
 		
 	//populate collision data array from canvas.
 	var levelImageData = ctx2.getImageData(0,0,LEVEL_WIDTH,LEVEL_HEIGHT).data;	//not sure this is the most direct way to go getting data from image
