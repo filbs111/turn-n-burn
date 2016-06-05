@@ -71,6 +71,12 @@ shotTypes.add({
 	'wall_mode': Shot.WALL_MODE_EXPLODE,
 	'exp_size': 24,
 	'fires_weapon': 'cluster burst'
+	},{
+	'name': 'grenade',
+ 	'wall_mode': Shot.WALL_MODE_BOUNCE,
+	'exp_size': 24,
+	'fires_weapon': 'cluster burst',
+	'timer':300
 });
 
 function Weapon( configObj ){
@@ -200,6 +206,12 @@ weapons.add({
 	'muz_vel': 3,
 	'wave_step': 40,
 	'exclude_from_weapons_list':true
+},{
+	'name':'grenade launcher',
+	'fire_interval': 20,
+	'shot_type': 'grenade',
+	'muz_vel': 3,
+	'autofire':false
 });
 weapons.print();
 
