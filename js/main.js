@@ -625,8 +625,6 @@ function updateMechanics(virtualTime){
 	player1object.cosAng = Math.cos(angRadians);
 	player1object.sinAng = Math.sin(angRadians);
 	//thrust
-	var cosAng = player1object.cosAng;
-	var sinAng = player1object.sinAng;
 
 	var playersThrusting = 0;
 	if(keyThing.keystate(191)){	// "/" key
@@ -660,24 +658,8 @@ function updateMechanics(virtualTime){
 				gunCountdown = currentWeaponType.fire_interval;
 				//console.log("dropped a bomb!");
 				
-				var hAng, vAng, forwardMuzvel, sideMuzvel;
+				fireWeapon(player1object)
 				
-				for (var shotNum = 0; shotNum<currentWeaponType.num_projectiles; shotNum++){
-					
-					hAng = Math.PI * (currentWeapon.hwave) / 180;	//note this is very inefficient -
-					vAng = Math.PI * (currentWeapon.vwave) / 180; //ideally should precalculate.
-					
-					forwardMuzvel = currentWeaponType.muz_vel * Math.cos(vAng);
-					sideMuzvel = currentWeaponType.muz_vel * Math.sin(hAng);
-					
-					new Bomb(player1object.x, player1object.y,
-					player1object.vx + forwardMuzvel*sinAng + sideMuzvel*cosAng + currentWeaponType.spray*gaussRand() , 
-					player1object.vy - forwardMuzvel*cosAng + sideMuzvel*sinAng + currentWeaponType.spray*gaussRand() ,
-					currentWeaponType.shot_type);
-					
-					currentWeapon.hwave += currentWeaponType.wave_step;
-					currentWeapon.vwave += currentWeaponType.v_wave_step;
-				}
 				var timeDelay = virtualTime - getTimestamp();
 				//console.log ("time delay : " + timeDelay);
 				
@@ -798,6 +780,7 @@ Bomb.prototype.iterate = function(){
 		if (this.y>=LEVEL_HEIGHT){this.y=LEVEL_HEIGHT; willDestroy=true;}
 
 		if (willDestroy==true){
+			this.stopMoving();
 			this.destroy();
 		} else if (getCollisionPixelDataXY(~~this.x,~~this.y)!=0){
 			//collision with arena....
@@ -808,6 +791,7 @@ Bomb.prototype.iterate = function(){
 			if (this.shotType.wall_mode == Shot.WALL_MODE_BOUNCE){
 				this.bounce();
 			} else {
+				this.stopMoving();
 				this.destroy();
 			}
 			return;
@@ -817,6 +801,10 @@ Bomb.prototype.iterate = function(){
 	this.vy+=0.025;	//not sure if should add at start or end. not sure if current setup is consistent with interpolation.
 	
 }
+Bomb.prototype.stopMoving = function(){
+	this.vx=0;	//useful to make cluster bomblets start from not moving (same behaviour as GFX)
+	this.vy=0;
+}
 Bomb.prototype.destroy = function(){
 	//console.log("detonating bomb . x = " + ~~this.x + ", y = " + ~~this.y );
 
@@ -825,6 +813,25 @@ Bomb.prototype.destroy = function(){
 	delete bombs[this.id];
 	//new Explosion(~~this.x, ~~this.y , 0,0, 100,0.5 );	//fixed size for now - seems about right for radius 48
 	new Explosion(~~this.x, ~~this.y , 0,0, 1.6*this.shotType.exp_size,1 );
+	
+	if (this.shotType.fires_weapon){
+		//console.log("should fire a weapon from shot!");
+		fireWeapon({
+			x:this.x,
+			y:this.y,
+			vx:this.vx,
+			vy:this.vy,
+			ang:0,
+			cosAng:1,
+			sinAng:0,
+			weapon:{
+				hwave:0,
+				vwave:0,
+				type:weapons.byName[this.shotType.fires_weapon]
+			}
+		});	//creating a new object here is not ideal - nicer to pass in some preexisting object like with player.
+	}
+	
 }
 Bomb.prototype.bounce = function(){
 	//reflection off normal http://www.3dkingdoms.com/weekly/weekly.php?a=2  Vnew = b * ( -2*(V dot N)*N + V )
@@ -909,9 +916,12 @@ function afterLoadFunc(){
 		player1object.weapon.vwave = 0;
 	});
 	for (var i in weapons.byName){		//populate dropdown options from weapons object. i is index == name of weapon
-		var newOption = document.createElement('option');
-		newOption.innerHTML = i;
-		weaponDropdown.appendChild(newOption);
+		//console.log("i = " + JSON.stringify(i));
+		if(!weapons.byName[i].exclude_from_weapons_list){
+			var newOption = document.createElement('option');
+			newOption.innerHTML = i;
+			weaponDropdown.appendChild(newOption);
+		}
 	}
 	player1object.weapon.type = weapons.byName[weaponDropdown.value];	
 	player1object.weapon.hwave = 0;

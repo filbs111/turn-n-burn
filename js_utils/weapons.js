@@ -37,6 +37,7 @@ function Shot( configObj ){
 	this.exp_speed = configObj["exp_speed"] || 0;
 	this.exp_type = configObj["exp_type"] || 0;
 	this.drag = configObj["drag"] || 1.0;
+	this.fires_weapon = configObj["fires_weapon"];
 	//TODO some way to use constants eg someObject.WALL_MODE_BOUNCE
 
 	//other things? 
@@ -65,6 +66,11 @@ shotTypes.add({
 	'name': 'para mine',
  	'wall_mode': Shot.WALL_MODE_BOUNCE,
 	'drag': 0.95
+	},{
+	'name': 'cluster',
+	'wall_mode': Shot.WALL_MODE_EXPLODE,
+	'exp_size': 24,
+	'fires_weapon': 'cluster burst'
 });
 
 function Weapon( configObj ){
@@ -80,6 +86,7 @@ function Weapon( configObj ){
 	this.v_wave_start = configObj.v_wave_start || this.wave_start;
 	this.wave_step = configObj.wave_step || 0;
 	this.v_wave_step = configObj.v_wave_step || this.wave_step;
+	this.exclude_from_weapons_list = configObj.exclude_from_weapons_list;
 }
 
 var weapons = thingListMaker(Weapon);
@@ -182,9 +189,51 @@ weapons.add({
 	'muz_vel': 3,
 	'wave_step': 231,
 	'v_wave_step': 51
+},{
+	'name': 'cluster bomb',
+	'fire_interval': 30,
+	'shot_type': 'cluster'
+},{
+	'name':'cluster burst',
+	'shot_type':'big',
+	'num_projectiles':9,
+	'muz_vel': 3,
+	'wave_step': 40,
+	'exclude_from_weapons_list':true
 });
 weapons.print();
 
 
+function fireWeapon(sourceObject){
+	//general function that works for players firing weapons, and for cluster bombs etc.
+	//as input, take an object of same format as player. 
+	
+	console.log("sourceObject = " + JSON.stringify(sourceObject));
+	
+	var currentWeapon = sourceObject.weapon;
+	var currentWeaponType = currentWeapon.type;
+	
+	var cosAng = sourceObject.cosAng;
+	var sinAng = sourceObject.sinAng;
+		
+	var hAng, vAng, forwardMuzvel, sideMuzvel;
+				
+	for (var shotNum = 0; shotNum<currentWeaponType.num_projectiles; shotNum++){
+		
+		hAng = Math.PI * (currentWeapon.hwave) / 180;	//note this is very inefficient -
+		vAng = Math.PI * (currentWeapon.vwave) / 180; //ideally should precalculate.
+		
+		forwardMuzvel = currentWeaponType.muz_vel * Math.cos(vAng);
+		sideMuzvel = currentWeaponType.muz_vel * Math.sin(hAng);
+		
+		new Bomb(sourceObject.x, sourceObject.y,
+		sourceObject.vx + forwardMuzvel*sinAng + sideMuzvel*cosAng + currentWeaponType.spray*gaussRand() , 
+		sourceObject.vy - forwardMuzvel*cosAng + sideMuzvel*sinAng + currentWeaponType.spray*gaussRand() ,
+		currentWeaponType.shot_type);
+		
+		currentWeapon.hwave += currentWeaponType.wave_step;
+		currentWeapon.vwave += currentWeaponType.v_wave_step;
+	}
+}
 
 
