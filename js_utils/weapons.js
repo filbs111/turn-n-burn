@@ -77,6 +77,11 @@ shotTypes.add({
 	'exp_size': 24,
 	'fires_weapon': 'cluster burst',
 	'timer':300
+	},{
+	'name': 'epic cluster',
+	'wall_mode': Shot.WALL_MODE_EXPLODE,
+	'exp_size': 24,
+	'fires_weapon': 'epic cluster burst'
 });
 
 function Weapon( configObj ){
@@ -212,6 +217,17 @@ weapons.add({
 	'shot_type': 'grenade',
 	'muz_vel': 3,
 	'autofire':false
+},{
+	'name':'epic cluster bomb',
+	'fire_interval': 30,
+	'shot_type':'epic cluster'
+},{
+	'name':'epic cluster burst',
+	'shot_type':'cluster',
+	'num_projectiles':5,
+	'muz_vel': 3,
+	'wave_step': 72,
+	'exclude_from_weapons_list':true
 });
 weapons.print();
 
