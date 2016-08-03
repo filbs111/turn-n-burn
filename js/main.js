@@ -600,10 +600,9 @@ function updateMechanics(virtualTime){
 	player1object.vy += 0.2 * (keyThing.downKey() - keyThing.upKey());
 	player1object.vx*=0.99;
 	player1object.vy*=0.99;
-	player1object.vy+=0.025;	//same gravity as bombs	
 	player1object.x+=player1object.vx;
 	player1object.y+=player1object.vy;
-
+	player1object.vy+=0.025;	//same gravity as bombs	
 	
 	//don't go outside level
 	var x_min =5;
@@ -623,6 +622,27 @@ function updateMechanics(virtualTime){
 	player1object.cosAng = Math.cos(angRadians);
 	player1object.sinAng = Math.sin(angRadians);
 	//thrust
+	
+	//landing on level
+	//initially just look at landing on horizontal surfaces , when player near upright
+	//better to allow landing on sloped surfaces etc but code would be more complex.
+	if (player1object.cosAng > 0.96){
+		var landed=true;
+		//note doing a strip like this can be made more efficient due to how collision data laid out
+		//not bothered optimising since not used much, may completely change
+		for (var offset = -2;offset<3;offset++){
+			landed = getCollisionPixelDataXY( Math.floor(player1object.x) + offset , Math.floor(player1object.y) +5) ? landed:false;
+		}
+			
+		if (landed){
+			if (player1object.vy > 0 ){
+				player1object.vy *= -0.5;
+				player1object.vx *= 0.8;
+				player1object.ang =0; player1object.cosAng=1;player1object.sinAng=0;
+			}
+		}
+	}
+	
 
 	var playersThrusting = 0;
 	if(keyThing.keystate(191)){	// "/" key
@@ -885,7 +905,7 @@ function afterLoadFunc(){
 	player2object = {
 		id:1,
 		x:100,
-		y:980,
+		y:978,
 		vx:0,
 		vy:0,
 		ang:0,
