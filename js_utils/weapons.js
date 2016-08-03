@@ -254,10 +254,20 @@ function fireWeapon(sourceObject){
 		forwardMuzvel = currentWeaponType.muz_vel * Math.cos(vAng);
 		sideMuzvel = currentWeaponType.muz_vel * Math.sin(hAng);
 		
-		new Bomb(sourceObject.x, sourceObject.y,
-		sourceObject.vx + forwardMuzvel*sinAng + sideMuzvel*cosAng + currentWeaponType.spray*gaussRand() , 
-		sourceObject.vy - forwardMuzvel*cosAng + sideMuzvel*sinAng + currentWeaponType.spray*gaussRand() ,
-		currentWeaponType.shot_type);
+		var relativeVel = {	x: forwardMuzvel*sinAng + sideMuzvel*cosAng + currentWeaponType.spray*gaussRand(), 
+							y: -forwardMuzvel*cosAng + sideMuzvel*sinAng + currentWeaponType.spray*gaussRand()
+						}
+		
+		new Bomb(sourceObject.x,
+			sourceObject.y, 
+			sourceObject.vx + relativeVel.x , 
+			sourceObject.vy + relativeVel.y ,
+			currentWeaponType.shot_type
+			);
+			
+		//recoil TODO take shot mass (compared to player) into account.
+		sourceObject.vx -= 0.005*relativeVel.x;
+		sourceObject.vy -= 0.005*relativeVel.y;
 		
 		currentWeapon.hwave += currentWeaponType.wave_step;
 		currentWeapon.vwave += currentWeaponType.v_wave_step;
