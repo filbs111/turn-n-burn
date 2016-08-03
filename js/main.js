@@ -615,9 +615,7 @@ function updateMechanics(virtualTime){
 	if (player1object.x>x_max){player1object.x=x_max;player1object.vx=0;}
 	if (player1object.y>y_max){player1object.y=y_max;player1object.vy=0;}
 	
-	if(keyThing.spaceKey()){makeACircle({offsetX:~~player1object.x, offsetY:~~player1object.y});}
-	if(keyThing.returnKey()){makeRandomCircles();}
-	
+	if(keyThing.spaceKey()){makeACircle({offsetX:~~player1object.x, offsetY:~~player1object.y});}	
 	
 	//rotate spaceship/ gun angle. no acceleration for now
 	player1object.ang += 3.0 * ( keyThing.keystate(190) - keyThing.keystate(188) );	// <, > keys  
@@ -681,16 +679,6 @@ function updateMechanics(virtualTime){
 		explosions[e].iterate();
 	}
 	
-}
-
- 
-function makeRandomCircles(){
-	var circnum, circleX, circleY;
-	for (circnum=0;circnum<20;circnum++){
-        circleX = LEVEL_WIDTH*Math.random() | 0;
-        circleY = LEVEL_HEIGHT*Math.random() | 0;		
-		makeACircle({offsetX:circleX, offsetY:circleY});
-	}
 }
 
 function getNormal(x,y){
