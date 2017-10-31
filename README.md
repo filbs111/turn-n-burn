@@ -5,7 +5,9 @@ An earlier effort written in DarkBasic can be found [here](https://sourceforge.n
 
 ## Controls:
 
-|rotate| <, > |
-|thrust| / |
-|fire| ctrl |
+rotate: <, >
+
+thrust: /
+
+fire: ctrl
 
